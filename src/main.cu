@@ -1,10 +1,10 @@
 #include <stdio.h>
-#include <iostream>
-#include <inttypes.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "shaders/background.h"
 #include "camera.h"
+#include "map.h"
+#include "chunkupdates.h"
 
 #define CELL_SIZE 64.0
 
@@ -22,10 +22,30 @@ static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) 
     scroll += yoffset;
 }
 
+static void cuda_assert(cudaError_t error, bool fatal = true) {
+    if (error != cudaError::cudaSuccess) {
+        fprintf(stderr, "CUDA Error %d: %s\n", error, cudaGetErrorString(error));
+        if (fatal) exit(1);
+    }
+}
+
+static void cuda_report(cudaError_t error) {
+    cuda_assert(error, false);
+}
+
 int main(void) {
+    cudaStream_t stream;
+    cuda_assert(cudaStreamCreate(&stream));
+
+    cudaEvent_t start, stop;
+    cuda_assert(cudaEventCreate(&start));
+    cuda_assert(cudaEventCreate(&stop));
+
     glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit())
+    if (!glfwInit()) {
+        fprintf(stderr, "Failed to initialize GLFW\n");
         return 1;
+    }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -70,9 +90,15 @@ int main(void) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    cudarrows::Map map;
+
     cudarrows::BackgroundShader background;
 
     cudarrows::Camera camera(0.0, 0.0, 1.0);
+
+    map.load("AAABAAAAAAAAAQAAAA==");
+
+    printf("arrow type: %d\n", map.getArrow(0, 0).type);
 
     bool lastWheelDown = false;
 

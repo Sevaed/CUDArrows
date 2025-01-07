@@ -1,0 +1,76 @@
+#include <string>
+#include <stdexcept>
+#include "base64/base64.h"
+#include "util/reader.h"
+#include "map.h"
+
+namespace cudarrows {
+    struct has_position {
+        uint16_t x, y;
+
+        has_position(uint16_t x, uint16_t y) : x(x), y(y) {}
+
+        __host__ __device__ bool operator()(cudarrows::Chunk chunk) {
+            return chunk.x == x && chunk.y == y;
+        }
+    };
+};
+
+void cudarrows::Map::load(const std::string &save) {
+    std::string buf = base64_decode(save);
+    if (buf.size() < 4) return;
+    util::Reader reader(buf);
+    if (reader.read16() != 0)
+        throw std::invalid_argument("Unsupported save version");
+    uint16_t chunkCount = reader.read16();
+    for (uint16_t i = 0; i < chunkCount; ++i) {
+        int16_t chunkX = reader.read16();
+        int16_t chunkY = reader.read16();
+        int16_t arrowTypeCount = reader.read8() + 1;
+        cudarrows::Chunk chunk = getChunk(chunkX, chunkY);
+        for (int16_t j = 0; j < arrowTypeCount; ++j) {
+            uint8_t type = reader.read8();
+            uint8_t arrowCount = reader.read8() + 1;
+            for (int16_t k = 0; k < arrowCount; ++k) {
+                uint8_t position = reader.read8();
+                uint8_t arrowX = position & 0xF;
+                uint8_t arrowY = position >> 4;
+                uint8_t rotation = reader.read8();
+                chunk.arrows[arrowY * CHUNK_SIZE + arrowX] = { type, (uint8_t)(rotation & 0x3), (bool)(rotation & 0x4) };
+            }
+        }
+        setChunk(chunkX, chunkY, chunk);
+    }
+}
+
+const cudarrows::Chunk cudarrows::Map::getChunk(uint16_t x, uint16_t y) {
+    thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
+    if (iter != chunks.end())
+        return iter[0];
+    chunks.push_back(cudarrows::Chunk(x, y));
+    return chunks.back();
+}
+
+void cudarrows::Map::setChunk(uint16_t x, uint16_t y, cudarrows::Chunk chunk) {
+    chunk.x = x;
+    chunk.y = y;
+    thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
+    if (iter != chunks.end())
+        iter[0] = chunk;
+    else
+        chunks.push_back(chunk);
+}
+
+const cudarrows::Arrow cudarrows::Map::getArrow(uint32_t x, uint32_t y) {
+    uint16_t chunkX = x / CHUNK_SIZE;
+    uint16_t chunkY = y / CHUNK_SIZE;
+    return getChunk(chunkX, chunkY).arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)];
+}
+
+void cudarrows::Map::setArrow(uint32_t x, uint32_t y, cudarrows::Arrow arrow) {
+    uint16_t chunkX = x / CHUNK_SIZE;
+    uint16_t chunkY = y / CHUNK_SIZE;
+    cudarrows::Chunk chunk = getChunk(chunkX, chunkY);
+    chunk.arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)] = arrow;
+    setChunk(chunkX, chunkY, chunk);
+}

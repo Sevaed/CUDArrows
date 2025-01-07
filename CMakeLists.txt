@@ -6,12 +6,15 @@ find_package(GLAD REQUIRED)
 find_package(GLFW3 REQUIRED)
  
 add_executable(cudarrows
-  src/main.cpp
-  src/cudarrows.cu
+  src/main.cu
+  src/chunkupdates.cu
   src/gl/shader.cpp
   src/gl/uniform.cpp
   src/shaders/shader.cpp
   src/camera.cpp
+  src/map.cu
+  src/base64/base64.cpp
+  src/util/reader.cpp
 )
 
 target_compile_features(cudarrows PUBLIC cxx_std_11)

@@ -1,22 +1,8 @@
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
+#include "chunkupdates.h"
+#include "map.h"
 
-#define CHUNK_SIZE 16
-
-struct Arrow {
-    uint8_t type;
-};
-
-struct Chunk {
-    uint16_t x, y;
-    Arrow arrows[CHUNK_SIZE * CHUNK_SIZE][2];
-};
-
-__global__ void update(Chunk *chunks, unsigned long long steps) {
-    for (unsigned long long i = 0; i < steps; i++) {
-        // ...
-        __syncthreads();
-    }
+__global__ void update(cudarrows::Chunk *chunks) {
+    // ...
 }
 
 /*
