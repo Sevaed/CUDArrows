@@ -3,26 +3,26 @@
 #include "shaders/shader.h"
 
 const char *backgroundVertex = R"%==%(
-precision mediump float;
+#version 330 core
+layout (location = 0) in vec2 position;
 
-attribute vec2 a_position;
-
-varying vec2 v_texcoord;
+out vec2 texCoord;
 
 void main() {
-    v_texcoord = vec2(a_position.x, 1.0 - a_position.y);
-    gl_Position = vec4(a_position * 2.0 - 1.0, 0.0, 1.0);
+    texCoord = vec2(position.x, 1.0 - position.y);
+    gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
 }
 )%==%";
 
 const char *backgroundFragment = R"%==%(
+#version 330 core
 #extension GL_OES_standard_derivatives : enable
 
-precision mediump float;
+out vec4 FragColor;
 
-varying vec2 v_texcoord;
+in vec2 texCoord;
 
-uniform vec4 u_transform;
+uniform vec4 transform;
 
 float gridThickness = .08;
 
@@ -42,9 +42,8 @@ float gridSmooth(vec2 p) {
 }
 
 void main() {
-    vec2 coord = vec2(1.0 - u_transform.x, 1.0 - u_transform.y) + v_texcoord * u_transform.zw;
-
-    gl_FragColor = vec4(0.8, 0.8, 0.8, 1.0) * gridSmooth(coord);
+    vec2 coord = vec2(1.0 - transform.x, 1.0 - transform.y) + texCoord * transform.zw;
+    FragColor = vec4(0.8, 0.8, 0.8, 1.0) * gridSmooth(coord);
 }
 )%==%";
 
@@ -54,6 +53,6 @@ namespace cudarrows {
         gl::Uniform4f transform;
 
         BackgroundShader() : BaseShader(backgroundVertex, backgroundFragment),
-            transform(program.getUniform<gl::Uniform4f>("u_transform")) {}
+            transform(program.getUniform<gl::Uniform4f>("transform")) {}
     };
 };

@@ -8,10 +8,10 @@ find_package(GLFW3 REQUIRED)
 add_executable(cudarrows
   src/main.cpp
   src/cudarrows.cu
-  src/gl/buffer.cpp
   src/gl/shader.cpp
   src/gl/uniform.cpp
   src/shaders/shader.cpp
+  src/camera.cpp
 )
 
 target_compile_features(cudarrows PUBLIC cxx_std_11)
