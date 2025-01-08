@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "map.h"
 #include "chunkupdates.h"
+#include "render.h"
 
 #define CELL_SIZE 64.0
 
@@ -113,12 +114,12 @@ int main(void) {
 
     cudarrows::Camera camera(0.f, 0.f, 1.f);
 
-    /*map.load("AAABAAAAAAAAAQAAAA==");
-
-    printf("arrow type: %d\n", map.getArrow(0, 0).type);*/
+    map.load("AAABAAAAAAAAAQAAAA==");
 
     double lastMouseX, lastMouseY;
     float lastCameraX, lastCameraY;
+
+    uint8_t step = 0;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -152,10 +153,21 @@ int main(void) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
+        uint32_t minX = uint32_t(-camera.xOffset / camera.getScale() / CELL_SIZE);
+        uint32_t minY = uint32_t(-camera.yOffset / camera.getScale() / CELL_SIZE);
+        uint32_t maxX = uint32_t((-camera.xOffset + width) / camera.getScale() / CELL_SIZE);
+        uint32_t maxY = uint32_t((-camera.yOffset + height) / camera.getScale() / CELL_SIZE);
+        uint32_t spanX = maxX - minX;
+        uint32_t spanY = maxY - minY;
+
+        printf("render %dx%d from (%d; %d) to (%d; %d)\n", spanX, spanY, minX, minY, maxX, maxY);
+
+        render<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(0, map.getChunks(), step, minX, minY, maxX, maxY);
+
         glm::mat4 cameraTransform(1.f);
         cameraTransform = glm::translate(cameraTransform, glm::vec3(
-            1.f - camera.xOffset / camera.getScale() / CELL_SIZE,
-            1.f - camera.yOffset / camera.getScale() / CELL_SIZE,
+            -camera.xOffset / camera.getScale() / CELL_SIZE,
+            -camera.yOffset / camera.getScale() / CELL_SIZE,
             0.f
         ));
         cameraTransform = glm::scale(cameraTransform, glm::vec3(

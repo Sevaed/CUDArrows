@@ -8,6 +8,7 @@ find_package(glm CONFIG REQUIRED)
  
 add_executable(cudarrows
   src/main.cu
+  src/render.cu
   src/chunkupdates.cu
   src/gl/shader.cpp
   src/gl/uniform.cpp

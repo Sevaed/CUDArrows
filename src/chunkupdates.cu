@@ -1,5 +1,4 @@
 #include "chunkupdates.h"
-#include "map.h"
 
 __global__ void update(cudarrows::Chunk *chunks) {
     // ...

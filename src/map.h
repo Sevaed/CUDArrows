@@ -5,16 +5,60 @@
 
 #define CHUNK_SIZE 16
 
-namespace cudarrows {    
+namespace cudarrows {
+    enum ArrowType : uint8_t {
+        Void,
+        ArrowUp,
+        Source,
+        Blocker,
+        Delay,
+        Detector,
+        ArrowUpDown,
+        ArrowUpRight,
+        ArrowUpLeftRight,
+        Pulse,
+        ArrowUp2,
+        ArrowDiagonal,
+        ArrowUp2Up,
+        ArrowUp2Right,
+        ArrowUpDiagonal,
+        Not,
+        And,
+        Xor,
+        Latch,
+        Flipflop,
+        Randomizer,
+        ButtonUpDownLeftRight,
+        ButtonUp
+    };
+
+    enum ArrowRotation : uint8_t {
+        North,
+        East,
+        South,
+        West
+    };
+
+    enum ArrowSignal : uint8_t {
+        White,
+        Red,
+        Blue,
+        Yellow,
+        Green,
+        Orange,
+        Magenta
+    };
+
     struct Arrow {
-        uint8_t type = 0;
-        uint8_t rotation = 0;
+        ArrowType type = ArrowType::Void;
+        ArrowRotation rotation = ArrowRotation::North;
         bool flipped = false;
     };
 
     struct ArrowState {
-        uint8_t signal = 0;
+        ArrowSignal signal = ArrowSignal::White;
         uint8_t signalCount = 0;
+        bool blocked = false;
     };
 
     struct Chunk {
@@ -39,6 +83,8 @@ namespace cudarrows {
         std::string save();
 
         const Chunk *getChunks() const { return thrust::raw_pointer_cast(chunks.data()); };
+
+        size_t countChunks() const { return chunks.size(); };
 
         const Chunk getChunk(uint16_t x, uint16_t y);
 
