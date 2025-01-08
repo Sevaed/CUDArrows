@@ -235,4 +235,130 @@ namespace gl {
 
         void set(GLsizei count, const GLdouble *value);
     };
+
+    class UniformMatrix2fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix2x3fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix2x4fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix3x2fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix3fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix3x4fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix4x2fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix4x3fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix4fv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLfloat *value);
+    };
+
+    class UniformMatrix2dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix2x3dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix2x4dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix3x2dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix3dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix3x4dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix4x2dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix4x3dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
+
+    class UniformMatrix4dv : public Uniform {
+    public:
+        using Uniform::Uniform;
+
+        void set(GLsizei count, bool transpose, const GLdouble *value);
+    };
 };

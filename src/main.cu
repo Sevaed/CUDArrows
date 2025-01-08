@@ -1,14 +1,29 @@
+#include <exception>
+#include <cstdlib>
 #include <stdio.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "shaders/background.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include "shaders/grid.h"
 #include "camera.h"
 #include "map.h"
 #include "chunkupdates.h"
 
 #define CELL_SIZE 64.0
 
-double scroll = 0.0;
+float scroll = 0.0;
+
+static void cudarrows_terminate() {
+    try {
+        if (std::current_exception())
+            std::rethrow_exception(std::current_exception());
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Error: %s\n", e.what());
+    }
+    std::abort();
+}
 
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -19,7 +34,7 @@ static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 }
 
 static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    scroll += yoffset;
+    scroll += static_cast<float>(yoffset);
 }
 
 static void cuda_assert(cudaError_t error, bool fatal = true) {
@@ -34,6 +49,8 @@ static void cuda_report(cudaError_t error) {
 }
 
 int main(void) {
+    std::set_terminate(cudarrows_terminate);
+
     cudaStream_t stream;
     cuda_assert(cudaStreamCreate(&stream));
 
@@ -92,17 +109,16 @@ int main(void) {
 
     cudarrows::Map map;
 
-    cudarrows::BackgroundShader background;
+    cudarrows::GridShader grid;
 
-    cudarrows::Camera camera(0.0, 0.0, 1.0);
+    cudarrows::Camera camera(0.f, 0.f, 1.f);
 
-    map.load("AAABAAAAAAAAAQAAAA==");
+    /*map.load("AAABAAAAAAAAAQAAAA==");
 
-    printf("arrow type: %d\n", map.getArrow(0, 0).type);
+    printf("arrow type: %d\n", map.getArrow(0, 0).type);*/
 
-    bool lastWheelDown = false;
-
-    double mouseStartX, mouseStartY, cameraStartX, cameraStartY;
+    double lastMouseX, lastMouseY;
+    float lastCameraX, lastCameraY;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -113,24 +129,22 @@ int main(void) {
         glfwGetCursorPos(window, &mouseX, &mouseY);
 
         bool wheelDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS;
-        if (wheelDown && !lastWheelDown) {
-            mouseStartX = mouseX;
-            mouseStartY = mouseY;
-            cameraStartX = camera.xOffset;
-            cameraStartY = camera.yOffset;
-        }
-        lastWheelDown = wheelDown;
 
         if (wheelDown) {
-            camera.xOffset = cameraStartX + mouseX - mouseStartX;
-            camera.yOffset = cameraStartY + mouseY - mouseStartY;
+            camera.xOffset = static_cast<float>(lastCameraX + mouseX - lastMouseX);
+            camera.yOffset = static_cast<float>(lastCameraY + mouseY - lastMouseY);
         }
 
         if (scroll > 0.0)
-            camera.setScale(camera.getScale() * scroll * 1.2, mouseX, mouseY);
+            camera.setScale(camera.getScale() * scroll * 1.2f, static_cast<float>(mouseX), static_cast<float>(mouseY));
         else if (scroll < 0.0)
-            camera.setScale(camera.getScale() / -scroll / 1.2, mouseX, mouseY);
-        scroll = 0.0;
+            camera.setScale(camera.getScale() / -scroll / 1.2f, static_cast<float>(mouseX), static_cast<float>(mouseY));
+        scroll = 0.0f;
+
+        lastCameraX = camera.xOffset;
+        lastCameraY = camera.yOffset;
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -138,13 +152,20 @@ int main(void) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
-        background.use();
-        background.transform.set(
-            camera.xOffset / camera.getScale() / CELL_SIZE,
-            camera.yOffset / camera.getScale() / CELL_SIZE,
-            (double)width / camera.getScale() / CELL_SIZE,
-            (double)height / camera.getScale() / CELL_SIZE
-        );
+        glm::mat4 cameraTransform(1.f);
+        cameraTransform = glm::translate(cameraTransform, glm::vec3(
+            1.f - camera.xOffset / camera.getScale() / CELL_SIZE,
+            1.f - camera.yOffset / camera.getScale() / CELL_SIZE,
+            0.f
+        ));
+        cameraTransform = glm::scale(cameraTransform, glm::vec3(
+            width / camera.getScale() / CELL_SIZE,
+            height / camera.getScale() / CELL_SIZE,
+            1.f
+        ));
+
+        grid.use();
+        grid.transform.set(1, false, glm::value_ptr(cameraTransform));
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 

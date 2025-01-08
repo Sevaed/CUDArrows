@@ -127,3 +127,75 @@ void gl::Uniform4d::set(GLdouble v0, GLdouble v1, GLdouble v2, GLdouble v3) {
 void gl::Uniform4dv::set(GLsizei count, const GLdouble *value) {
     glUniform4dv(uniformLocation, count, value);
 }
+
+void gl::UniformMatrix2fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix2fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix2x3fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix2x3fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix2x4fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix2x4fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix3x2fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix3x2fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix3fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix3fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix3x4fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix3x4fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix4x2fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix4x2fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix4x3fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix4x3fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix4fv::set(GLsizei count, bool transpose, const GLfloat *value) {
+    glUniformMatrix4fv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix2dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix2dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix2x3dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix2x3dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix2x4dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix2x4dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix3x2dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix3x2dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix3dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix3dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix3x4dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix3x4dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix4x2dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix4x2dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix4x3dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix4x3dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void gl::UniformMatrix4dv::set(GLsizei count, bool transpose, const GLdouble *value) {
+    glUniformMatrix4dv(uniformLocation, count, transpose ? GL_TRUE : GL_FALSE, value);
+}

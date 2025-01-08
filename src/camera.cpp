@@ -1,10 +1,10 @@
 #include "camera.h"
 
-double cudarrows::Camera::getScale() {
+float cudarrows::Camera::getScale() {
     return scale;
 }
 
-void cudarrows::Camera::setScale(double newScale, double xOrigin, double yOrigin) {
+void cudarrows::Camera::setScale(float newScale, float xOrigin, float yOrigin) {
     if (newScale < MIN_SCALE)
         newScale = MIN_SCALE;
     if (newScale > MAX_SCALE)

@@ -6,16 +6,16 @@
 namespace cudarrows {
     class Camera {
     private:
-        double scale;
+        float scale;
     
     public:
-        double xOffset;
-        double yOffset;
+        float xOffset;
+        float yOffset;
 
-        Camera(double x, double y, double initialScale) : xOffset(x), yOffset(y), scale(initialScale) {}
+        Camera(float x, float y, float initialScale) : xOffset(x), yOffset(y), scale(initialScale) {}
 
-        double getScale();
+        float getScale();
 
-        void setScale(double newScale, double xOrigin, double yOrigin);
+        void setScale(float newScale, float xOrigin, float yOrigin);
     };
 }

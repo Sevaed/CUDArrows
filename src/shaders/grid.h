@@ -2,27 +2,28 @@
 #include "gl/uniform.h"
 #include "shaders/shader.h"
 
-const char *backgroundVertex = R"%==%(
+const char *gridVertex = R"%==%(
 #version 330 core
 layout (location = 0) in vec2 position;
 
 out vec2 texCoord;
 
+uniform mat4 transform;
+
 void main() {
-    texCoord = vec2(position.x, 1.0 - position.y);
+    vec4 texPos = vec4(position.x, 1.0 - position.y, 0.0, 1.0);
+    texCoord = (transform * texPos).xy;
     gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
 }
 )%==%";
 
-const char *backgroundFragment = R"%==%(
+const char *gridFragment = R"%==%(
 #version 330 core
 #extension GL_OES_standard_derivatives : enable
 
 out vec4 FragColor;
 
 in vec2 texCoord;
-
-uniform vec4 transform;
 
 float gridThickness = .08;
 
@@ -42,17 +43,16 @@ float gridSmooth(vec2 p) {
 }
 
 void main() {
-    vec2 coord = vec2(1.0 - transform.x, 1.0 - transform.y) + texCoord * transform.zw;
-    FragColor = vec4(0.8, 0.8, 0.8, 1.0) * gridSmooth(coord);
+    FragColor = vec4(0.8, 0.8, 0.8, 1.0) * gridSmooth(texCoord);
 }
 )%==%";
 
 namespace cudarrows {
-    class BackgroundShader : public BaseShader {
+    class GridShader : public BaseShader {
     public:
-        gl::Uniform4f transform;
+        gl::UniformMatrix4fv transform;
 
-        BackgroundShader() : BaseShader(backgroundVertex, backgroundFragment),
-            transform(program.getUniform<gl::Uniform4f>("transform")) {}
+        GridShader() : BaseShader(gridVertex, gridFragment),
+            transform(program.getUniform<gl::UniformMatrix4fv>("transform")) {}
     };
 };

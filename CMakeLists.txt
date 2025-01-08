@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(cudarrows LANGUAGES CXX CUDA)
 
 find_package(OpenGL REQUIRED)
-find_package(GLAD REQUIRED)
-find_package(GLFW3 REQUIRED)
+find_package(glad CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
  
 add_executable(cudarrows
   src/main.cu
@@ -25,7 +26,7 @@ set_target_properties(cudarrows
 
 target_include_directories(cudarrows PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
-target_link_libraries(cudarrows PRIVATE glfw glad::glad ${OPENGL_LIBRARIES})
+target_link_libraries(cudarrows PRIVATE glfw glad::glad glm::glm ${OPENGL_LIBRARIES})
 
 if(APPLE)
   set_property(TARGET cudarrows

@@ -5,7 +5,7 @@ std::string gl::GLShaderCompileError::getInfoLog(GLuint glShader) {
     glGetShaderiv(glShader, GL_INFO_LOG_LENGTH, &infoLogLength);
     if (infoLogLength == 0) return "";
     std::string infoLog(infoLogLength - 1, 0);
-    glGetProgramInfoLog(glShader, infoLogLength - 1, NULL, &infoLog[0]);
+    glGetShaderInfoLog(glShader, infoLogLength - 1, NULL, &infoLog[0]);
     return infoLog;
 }
 
@@ -26,7 +26,7 @@ gl::Shader::Shader(ShaderType type, const GLchar *source) {
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success)
-        throw new GLShaderCompileError(shader);
+        throw GLShaderCompileError(shader);
 }
 
 gl::Shader::~Shader() {
@@ -42,7 +42,7 @@ gl::ShaderProgram::ShaderProgram(Shader vertexShader, Shader fragmentShader) {
     GLint success;
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success)
-        throw new GLShaderProgramLinkError(shaderProgram);
+        throw GLShaderProgramLinkError(shaderProgram);
 }
 
 gl::ShaderProgram::~ShaderProgram() {

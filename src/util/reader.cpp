@@ -8,7 +8,7 @@ util::Reader::Reader(std::string buffer) {
 
 uint8_t util::Reader::read8() {
     if (this->buffer >= this->end)
-        throw new std::out_of_range("failed to read from buffer");
+        throw std::out_of_range("failed to read from buffer");
     return *(this->buffer++);
 }
 
