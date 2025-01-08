@@ -63,6 +63,7 @@ namespace cudarrows {
 
     struct Chunk {
         uint16_t x, y;
+        Chunk *adjacentChunks[8] = { nullptr };
         Arrow arrows[CHUNK_SIZE * CHUNK_SIZE];
         ArrowState states[CHUNK_SIZE * CHUNK_SIZE][2];
 

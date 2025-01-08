@@ -36,7 +36,7 @@ void cudarrows::Map::load(const std::string &save) {
                 uint8_t arrowX = position & 0xF;
                 uint8_t arrowY = position >> 4;
                 uint8_t rotation = reader.read8();
-                chunk.arrows[arrowY * CHUNK_SIZE + arrowX] = { type, (uint8_t)(rotation & 0x3), (bool)(rotation & 0x4) };
+                chunk.arrows[arrowY * CHUNK_SIZE + arrowX] = { (cudarrows::ArrowType)type, (cudarrows::ArrowRotation)(rotation & 0x3), (bool)(rotation & 0x4) };
             }
         }
         setChunk(chunkX, chunkY, chunk);
