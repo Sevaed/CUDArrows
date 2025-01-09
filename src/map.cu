@@ -39,26 +39,37 @@ void cudarrows::Map::load(const std::string &save) {
                 chunk.arrows[arrowY * CHUNK_SIZE + arrowX] = { (cudarrows::ArrowType)type, (cudarrows::ArrowRotation)(rotation & 0x3), (bool)(rotation & 0x4) };
             }
         }
-        setChunk(chunkX, chunkY, chunk);
+        setChunk(chunk);
     }
 }
 
 const cudarrows::Chunk cudarrows::Map::getChunk(int16_t x, int16_t y) {
     thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
-    if (iter != chunks.end())
-        return iter[0];
-    chunks.push_back(cudarrows::Chunk(x, y));
-    return chunks.back();
+    return iter == chunks.end() ? cudarrows::Chunk(x, y) : iter[0];
 }
 
-void cudarrows::Map::setChunk(int16_t x, int16_t y, cudarrows::Chunk chunk) {
-    chunk.x = x;
-    chunk.y = y;
-    thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
+void cudarrows::Map::setChunk(cudarrows::Chunk chunk) {
+    thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(chunk.x, chunk.y));
     if (iter != chunks.end())
         iter[0] = chunk;
-    else
+    else {
+        int16_t neighbours[][2] = {
+            { chunk.x,     chunk.y - 1 },
+            { chunk.x + 1, chunk.y - 1 },
+            { chunk.x + 1, chunk.y     },
+            { chunk.x + 1, chunk.y + 1 },
+            { chunk.x,     chunk.y + 1 },
+            { chunk.x - 1, chunk.y + 1 },
+            { chunk.x - 1, chunk.y     },
+            { chunk.x - 1, chunk.y - 1 }
+        };
+        for (uint16_t i = 0; i < sizeof(neighbours) / sizeof(neighbours[0]); ++i) {
+            iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(neighbours[i][0], neighbours[i][1]));
+            if (iter != chunks.end())
+                chunk.adjacentChunks[i] = thrust::raw_pointer_cast(&iter[0]);
+        }
         chunks.push_back(chunk);
+    }
 }
 
 const cudarrows::Arrow cudarrows::Map::getArrow(int32_t x, int32_t y) {
@@ -72,5 +83,5 @@ void cudarrows::Map::setArrow(int32_t x, int32_t y, cudarrows::Arrow arrow) {
     int16_t chunkY = y / CHUNK_SIZE;
     cudarrows::Chunk chunk = getChunk(chunkX, chunkY);
     chunk.arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)] = arrow;
-    setChunk(chunkX, chunkY, chunk);
+    setChunk(chunk);
 }

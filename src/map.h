@@ -49,23 +49,23 @@ namespace cudarrows {
         Magenta
     };
 
-    struct Arrow {
-        ArrowType type = ArrowType::Void;
-        ArrowRotation rotation = ArrowRotation::North;
-        bool flipped = false;
-    };
-
     struct ArrowState {
         ArrowSignal signal = ArrowSignal::White;
         uint8_t signalCount = 0;
         bool blocked = false;
     };
 
+    struct Arrow {
+        ArrowType type = ArrowType::Void;
+        ArrowRotation rotation = ArrowRotation::North;
+        bool flipped = false;
+        ArrowState state[2];
+    };
+
     struct Chunk {
         int16_t x, y;
         Chunk *adjacentChunks[8] = { nullptr };
         Arrow arrows[CHUNK_SIZE * CHUNK_SIZE];
-        ArrowState states[CHUNK_SIZE * CHUNK_SIZE][2];
 
         Chunk(int16_t x, int16_t y) : x(x), y(y) {}
 
@@ -80,8 +80,6 @@ namespace cudarrows {
         Map() {}
 
         void load(const std::string &save);
-        
-        std::string save();
 
         const Chunk *getChunks() const { return thrust::raw_pointer_cast(chunks.data()); };
 
@@ -89,7 +87,7 @@ namespace cudarrows {
 
         const Chunk getChunk(int16_t x, int16_t y);
 
-        void setChunk(int16_t x, int16_t y, Chunk chunk);
+        void setChunk(Chunk chunk);
 
         const Arrow getArrow(int32_t x, int32_t y);
 

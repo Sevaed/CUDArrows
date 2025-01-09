@@ -68,6 +68,11 @@ GLsizei roundToPowerOf2(GLsizei n) {
 int main(int argc, char *argv[]) {
     std::set_terminate(cudarrows_terminate);
 
+    if (argc < 2) {
+        printf("Usage: cudarrows <map-code>\n");
+        return 1;
+    }
+
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         fprintf(stderr, "Failed to initialize GLFW\n");
@@ -166,12 +171,12 @@ int main(int argc, char *argv[]) {
 
     cudarrows::Camera camera(0.f, 0.f, 1.f);
 
-    map.load("AAABAAAAAAAADQcQByADAQAxBgIEMgITASMF");
+    map.load(argv[1]);
 
     double lastMouseX, lastMouseY;
     float lastCameraX, lastCameraY;
 
-    uint8_t step = 0;
+    uint8_t step = 0, nextStep = 1;
 
     glm::mat4 projection = glm::ortho(0.f, 1.f, 1.f, 0.f);
 
@@ -221,6 +226,9 @@ int main(int argc, char *argv[]) {
         lastCameraY = camera.yOffset;
         lastMouseX = mouseX;
         lastMouseY = mouseY;
+
+        update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
+        std::swap(step, nextStep);
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);

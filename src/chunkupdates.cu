@@ -1,22 +1,111 @@
 #include "chunkupdates.h"
 
-__global__ void update(cudarrows::Chunk *chunks) {
-    // ...
+__device__ cudarrows::Arrow *getArrow(cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, int8_t x, int8_t y, int8_t dx, int8_t dy) {
+    if (arrow.flipped)
+        dx = -dx;
+    switch (arrow.rotation) {
+        case cudarrows::ArrowRotation::North:
+            y += dy;
+            x += dx;
+            break;
+        case cudarrows::ArrowRotation::East:
+            x -= dy;
+            y += dx;
+            break;
+        case cudarrows::ArrowRotation::South:
+            y -= dy;
+            x -= dx;
+            break;
+        case cudarrows::ArrowRotation::West:
+            x += dy;
+            y -= dx;
+            break;
+    }
+    cudarrows::Chunk *targetChunk = &chunk;
+    if (x >= CHUNK_SIZE) {
+        if (y >= CHUNK_SIZE) {
+            targetChunk = chunk.adjacentChunks[3];
+            x -= CHUNK_SIZE;
+            y -= CHUNK_SIZE;
+      }  else if (y < 0) {
+            targetChunk = chunk.adjacentChunks[1];
+            x -= CHUNK_SIZE;
+            y += CHUNK_SIZE;
+        } else {
+            targetChunk = chunk.adjacentChunks[2];
+            x -= CHUNK_SIZE;
+        }
+    } else if (x < 0) {
+        if (y < 0) {
+            targetChunk = chunk.adjacentChunks[7];
+            x += CHUNK_SIZE;
+            y += CHUNK_SIZE;
+        } else if (y >= CHUNK_SIZE) {
+            targetChunk = chunk.adjacentChunks[5];
+            x += CHUNK_SIZE;
+            y -= CHUNK_SIZE;
+        } else {
+            targetChunk = chunk.adjacentChunks[6];
+            x += CHUNK_SIZE;
+        }
+    } else if (y < 0) {
+        targetChunk = chunk.adjacentChunks[0];
+        y += CHUNK_SIZE;
+    } else if (y >= CHUNK_SIZE) {
+        targetChunk = chunk.adjacentChunks[4];
+        y -= CHUNK_SIZE;
+    }
+    return targetChunk == nullptr ? nullptr : &targetChunk->arrows[y * CHUNK_SIZE + x];
 }
 
-/*
-thrust::host_vector<Chunk> h_vec;
-h_vec.push_back(Chunk { 0, 0 });
-h_vec.push_back(Chunk { 10, 0 });
-h_vec.push_back(Chunk { 10, 12 });
-thrust::device_vector<Chunk> d_vec = h_vec;
-Chunk *chunks = thrust::raw_pointer_cast(d_vec.data());
-clock_t start = clock();
-unsigned long long i = 0;
-while ((clock() - start) < 5000) {
-    update<<<d_vec.size(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(chunks);
-    i += 100000;
+__device__ void sendSignal(cudarrows::Arrow *arrow, uint8_t step) {
+    if (arrow && arrow->type != 0)
+        ++arrow->state[step].signalCount;
 }
-cudaDeviceSynchronize();
-std::cout << (i / float(clock() - start)) << " iterations per second" << std::endl;
-*/
+
+__device__ void blockSignal(cudarrows::Arrow *arrow, uint8_t step) {
+    if (arrow && arrow->type != 0)
+        arrow->state[step].blocked = true;
+}
+
+__global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep) {
+    cudarrows::Chunk &chunk = chunks[blockIdx.x];
+    int32_t x = chunk.x * CHUNK_SIZE + threadIdx.x;
+    int32_t y = chunk.y * CHUNK_SIZE + threadIdx.y;
+    uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
+    cudarrows::Arrow &arrow = chunk.arrows[idx];
+    cudarrows::ArrowState &state = arrow.state[step];
+    cudarrows::ArrowState &prevState = arrow.state[nextStep];
+    if (state.blocked)
+        state.signal = cudarrows::ArrowSignal::White;
+    else
+        switch (arrow.type) {
+            case cudarrows::ArrowType::ArrowUp:
+            case cudarrows::ArrowType::Blocker:
+                state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
+                break;
+            case cudarrows::ArrowType::Source:
+                state.signal = cudarrows::ArrowSignal::Red;
+                break;
+        }
+    switch (arrow.type) {
+        case cudarrows::ArrowType::ArrowUp:
+            if (prevState.signal == cudarrows::ArrowSignal::Red)
+                sendSignal(getArrow(chunk, arrow, x, y, 0, -1), nextStep);
+            break;
+        case cudarrows::ArrowType::Source:
+            if (prevState.signal == cudarrows::ArrowSignal::Red) {
+                sendSignal(getArrow(chunk, arrow, x, y,  0, -1), nextStep);
+                sendSignal(getArrow(chunk, arrow, x, y,  1,  0), nextStep);
+                sendSignal(getArrow(chunk, arrow, x, y,  0,  1), nextStep);
+                sendSignal(getArrow(chunk, arrow, x, y, -1,  0), nextStep);
+            }
+            break;
+        case cudarrows::ArrowType::Blocker:
+            if (prevState.signal == cudarrows::ArrowSignal::Red)
+                blockSignal(getArrow(chunk, arrow, x, y, 0, -1), nextStep);
+            break;
+    }
+    state.signalCount = 0;
+    state.blocked = false;
+}
