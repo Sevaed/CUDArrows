@@ -1,15 +1,10 @@
 #include <stdexcept>
 #include "util/reader.h"
 
-util::Reader::Reader(std::string buffer) {
-    this->buffer = (uint8_t *)buffer.c_str();
-    this->end = this->buffer + buffer.size();
-}
-
 uint8_t util::Reader::read8() {
-    if (this->buffer >= this->end)
-        throw std::out_of_range("failed to read from buffer");
-    return *(this->buffer++);
+    if (this->offset >= this->buffer.size())
+        throw std::out_of_range("Failed to read from buffer");
+    return this->buffer[this->offset++];
 }
 
 uint16_t util::Reader::read16() {

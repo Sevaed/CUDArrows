@@ -1,5 +1,7 @@
 #include <exception>
 #include <cstdlib>
+#include <filesystem>
+#include <string>
 #include <stdio.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -7,6 +9,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include "shaders/arrows.h"
 #include "shaders/grid.h"
 #include "camera.h"
@@ -14,7 +18,9 @@
 #include "chunkupdates.h"
 #include "render.h"
 
-#define CELL_SIZE 64.0
+#define CELL_SIZE 64.0f
+
+namespace fs = std::filesystem;
 
 float scroll = 0.0;
 
@@ -59,15 +65,8 @@ GLsizei roundToPowerOf2(GLsizei n) {
     return ++n < 16 ? 16 : n;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
     std::set_terminate(cudarrows_terminate);
-
-    /*cudaStream_t stream;
-    cuda_assert(cudaStreamCreate(&stream));*/
-
-    /*cudaEvent_t start, stop;
-    cuda_assert(cudaEventCreate(&start));
-    cuda_assert(cudaEventCreate(&stop));*/
 
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
@@ -129,14 +128,45 @@ int main(void) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    fs::path atlasPath(argv[0]);
+    atlasPath = atlasPath.parent_path();
+    atlasPath = atlasPath.append("res").append("atlas.png");
+    if (!fs::exists(atlasPath)) {
+        fprintf(stderr, "Failed load texture atlas\n");
+        return 1;
+    }
+
+    int atlasWidth, atlasHeight;
+    GLubyte *atlasData = stbi_load(atlasPath.string().c_str(), &atlasWidth, &atlasHeight, NULL, 0);
+
+    GLuint atlasTexture;
+
+    glActiveTexture(GL_TEXTURE1);
+    glGenTextures(1, &atlasTexture);
+    glBindTexture(GL_TEXTURE_2D, atlasTexture);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atlasWidth, atlasHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, atlasData);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    stbi_image_free(atlasData);
+
     cudarrows::Map map;
 
     cudarrows::ArrowsShader arrows;
     cudarrows::GridShader grid;
 
+    arrows.arrowAtlas.set(1);
+    arrows.data.set(0);
+
     cudarrows::Camera camera(0.f, 0.f, 1.f);
 
-    map.load("AAABAAAAAAAAAQAAAA==");
+    map.load("AAABAAAAAAAADQcQByADAQAxBgIEMgITASMF");
 
     double lastMouseX, lastMouseY;
     float lastCameraX, lastCameraY;
@@ -147,6 +177,8 @@ int main(void) {
 
     arrows.use();
     arrows.projection.set(1, false, glm::value_ptr(projection));
+    arrows.arrowAtlas.set(1);
+    arrows.data.set(0);
 
     grid.use();
     grid.projection.set(1, false, glm::value_ptr(projection));
@@ -155,7 +187,7 @@ int main(void) {
 
     GLuint dataTexture;
 
-    uint8_t fill[4] = { 0, 0, 0, 1 };
+    uint8_t fill[4] = { 0, 0, 0, 255 };
 
     cudaResourceDesc resDesc;
     memset(&resDesc, 0, sizeof(resDesc));
@@ -214,6 +246,8 @@ int main(void) {
                 texWidth = newTexWidth;
                 texHeight = newTexHeight;
 
+                glActiveTexture(GL_TEXTURE0);
+
                 if (cudaTexture != nullptr) {
                     cuda_assert(cudaGraphicsUnregisterResource(cudaTexture));
 
@@ -229,7 +263,7 @@ int main(void) {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
                 glGenerateMipmap(GL_TEXTURE_2D);
 
                 cuda_assert(cudaGraphicsGLRegisterImage(&cudaTexture, dataTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
@@ -249,8 +283,6 @@ int main(void) {
 
         render<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(surface, map.getChunks(), step, minX, minY, maxX, maxY);
         cuda_assert(cudaPeekAtLastError());
-
-        cuda_assert(cudaDeviceSynchronize());
 
         cuda_assert(cudaDestroySurfaceObject(surface));
 

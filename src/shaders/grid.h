@@ -28,7 +28,7 @@ out vec4 FragColor;
 
 in vec2 texCoord;
 
-float gridThickness = .08;
+float gridThickness = .06;
 
 float filterWidth2(vec2 uv) {
     vec2 dx = dFdx(uv), dy = dFdy(uv);
@@ -46,7 +46,7 @@ float gridSmooth(vec2 p) {
 }
 
 void main() {
-    FragColor = vec4(0.8, 0.8, 0.8, 1.0) * gridSmooth(texCoord);
+    FragColor = vec4(0.0, 0.0, 0.0, 0.2) * gridSmooth(texCoord);
 }
 )%==%";
 

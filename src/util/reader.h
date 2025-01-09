@@ -5,11 +5,11 @@
 namespace util {
     class Reader {
     private:
-        uint8_t *buffer;
-        uint8_t *end;
+        const std::string &buffer;
+        unsigned int offset = 0;
 
     public:
-        Reader(std::string buffer);
+        Reader(const std::string &buffer) : buffer(buffer) {}
 
         uint8_t read8();
 
