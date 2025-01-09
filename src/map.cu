@@ -6,9 +6,9 @@
 
 namespace cudarrows {
     struct has_position {
-        uint16_t x, y;
+        int16_t x, y;
 
-        has_position(uint16_t x, uint16_t y) : x(x), y(y) {}
+        has_position(int16_t x, int16_t y) : x(x), y(y) {}
 
         __host__ __device__ bool operator()(cudarrows::Chunk chunk) {
             return chunk.x == x && chunk.y == y;
@@ -43,7 +43,7 @@ void cudarrows::Map::load(const std::string &save) {
     }
 }
 
-const cudarrows::Chunk cudarrows::Map::getChunk(uint16_t x, uint16_t y) {
+const cudarrows::Chunk cudarrows::Map::getChunk(int16_t x, int16_t y) {
     thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
     if (iter != chunks.end())
         return iter[0];
@@ -51,7 +51,7 @@ const cudarrows::Chunk cudarrows::Map::getChunk(uint16_t x, uint16_t y) {
     return chunks.back();
 }
 
-void cudarrows::Map::setChunk(uint16_t x, uint16_t y, cudarrows::Chunk chunk) {
+void cudarrows::Map::setChunk(int16_t x, int16_t y, cudarrows::Chunk chunk) {
     chunk.x = x;
     chunk.y = y;
     thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
@@ -61,15 +61,15 @@ void cudarrows::Map::setChunk(uint16_t x, uint16_t y, cudarrows::Chunk chunk) {
         chunks.push_back(chunk);
 }
 
-const cudarrows::Arrow cudarrows::Map::getArrow(uint32_t x, uint32_t y) {
-    uint16_t chunkX = x / CHUNK_SIZE;
-    uint16_t chunkY = y / CHUNK_SIZE;
+const cudarrows::Arrow cudarrows::Map::getArrow(int32_t x, int32_t y) {
+    int16_t chunkX = x / CHUNK_SIZE;
+    int16_t chunkY = y / CHUNK_SIZE;
     return getChunk(chunkX, chunkY).arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)];
 }
 
-void cudarrows::Map::setArrow(uint32_t x, uint32_t y, cudarrows::Arrow arrow) {
-    uint16_t chunkX = x / CHUNK_SIZE;
-    uint16_t chunkY = y / CHUNK_SIZE;
+void cudarrows::Map::setArrow(int32_t x, int32_t y, cudarrows::Arrow arrow) {
+    int16_t chunkX = x / CHUNK_SIZE;
+    int16_t chunkY = y / CHUNK_SIZE;
     cudarrows::Chunk chunk = getChunk(chunkX, chunkY);
     chunk.arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)] = arrow;
     setChunk(chunkX, chunkY, chunk);

@@ -1,11 +1,11 @@
 #include "render.h"
 
-__global__ void render(cudaSurfaceObject_t surf, const cudarrows::Chunk *chunks, uint8_t step, uint32_t minX, uint32_t minY, uint32_t maxX, uint32_t maxY) {
+__global__ void render(cudaSurfaceObject_t surf, const cudarrows::Chunk *chunks, uint8_t step, int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
     cudarrows::Chunk chunk = chunks[blockIdx.x];
-    uint16_t chunkX = chunk.x;
-    uint16_t chunkY = chunk.y;
-    uint32_t x = chunkX * CHUNK_SIZE + threadIdx.x;
-    uint32_t y = chunkY * CHUNK_SIZE + threadIdx.y;
+    int16_t chunkX = chunk.x;
+    int16_t chunkY = chunk.y;
+    int32_t x = chunkX * CHUNK_SIZE + threadIdx.x;
+    int32_t y = chunkY * CHUNK_SIZE + threadIdx.y;
     if (x < minX || y < minY || x > maxX || y > maxY) return;
     x -= minX;
     y -= minY;

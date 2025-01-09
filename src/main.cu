@@ -62,12 +62,12 @@ GLsizei roundToPowerOf2(GLsizei n) {
 int main(void) {
     std::set_terminate(cudarrows_terminate);
 
-    cudaStream_t stream;
-    cuda_assert(cudaStreamCreate(&stream));
+    /*cudaStream_t stream;
+    cuda_assert(cudaStreamCreate(&stream));*/
 
-    cudaEvent_t start, stop;
+    /*cudaEvent_t start, stop;
     cuda_assert(cudaEventCreate(&start));
-    cuda_assert(cudaEventCreate(&stop));
+    cuda_assert(cudaEventCreate(&stop));*/
 
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
@@ -75,8 +75,8 @@ int main(void) {
         return 1;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
@@ -148,25 +148,21 @@ int main(void) {
     arrows.use();
     arrows.projection.set(1, false, glm::value_ptr(projection));
 
-    cudaGraphicsResource_t cudaTexture;
+    grid.use();
+    grid.projection.set(1, false, glm::value_ptr(projection));
+
+    cudaGraphicsResource_t cudaTexture = nullptr;
 
     GLuint dataTexture;
-    glGenTextures(1, &dataTexture);
-    glBindTexture(GL_TEXTURE_2D, dataTexture);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
-    GLsizei texWidth = 16, texHeight = 16;
+    uint8_t fill[4] = { 0, 0, 0, 1 };
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    cudaResourceDesc resDesc;
+    memset(&resDesc, 0, sizeof(resDesc));
+    resDesc.resType = cudaResourceTypeArray;
 
-    cuda_assert(cudaGraphicsGLRegisterImage(&cudaTexture, dataTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsNone));
-
-    GLsizei lastSpanX = 0, lastSpanY = 0;
+    GLsizei texWidth, texHeight,
+            lastSpanX, lastSpanY;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -200,46 +196,67 @@ int main(void) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
-        uint32_t minX = uint32_t(-camera.xOffset / camera.getScale() / CELL_SIZE),
-                 minY = uint32_t(-camera.yOffset / camera.getScale() / CELL_SIZE),
-                 maxX = uint32_t((-camera.xOffset + width) / camera.getScale() / CELL_SIZE),
-                 maxY = uint32_t((-camera.yOffset + height) / camera.getScale() / CELL_SIZE);
+        int32_t minX = int32_t(-camera.xOffset / camera.getScale() / CELL_SIZE) - 1,
+                minY = int32_t(-camera.yOffset / camera.getScale() / CELL_SIZE) - 1,
+                maxX = int32_t((-camera.xOffset + width) / camera.getScale() / CELL_SIZE),
+                maxY = int32_t((-camera.yOffset + height) / camera.getScale() / CELL_SIZE);
         
-        GLsizei spanX = GLsizei(width / camera.getScale() / CELL_SIZE) + 1,
-                spanY = GLsizei(height / camera.getScale() / CELL_SIZE) + 1;
+        GLsizei spanX = GLsizei(width / camera.getScale() / CELL_SIZE) + 2,
+                spanY = GLsizei(height / camera.getScale() / CELL_SIZE) + 2;
 
-        if (lastSpanX != spanX || lastSpanY != spanY) {
+        if (cudaTexture == nullptr || lastSpanX != spanX || lastSpanY != spanY) {
             lastSpanX = spanX;
             lastSpanY = spanY;
 
             GLsizei newTexWidth = roundToPowerOf2(spanX),
                     newTexHeight = roundToPowerOf2(spanY);
-            if (newTexWidth != texWidth || newTexHeight != texHeight) {
-                printf("resize from %dx%d to %dx%d\n", texWidth, texHeight, newTexWidth, newTexHeight);
-
+            if (cudaTexture == nullptr || newTexWidth != texWidth || newTexHeight != texHeight) {
                 texWidth = newTexWidth;
                 texHeight = newTexHeight;
 
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+                if (cudaTexture != nullptr) {
+                    cuda_assert(cudaGraphicsUnregisterResource(cudaTexture));
+
+                    glDeleteTextures(1, &dataTexture);
+                }
+
+                glGenTextures(1, &dataTexture);
+                glBindTexture(GL_TEXTURE_2D, dataTexture);
+                
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+                glGenerateMipmap(GL_TEXTURE_2D);
+
+                cuda_assert(cudaGraphicsGLRegisterImage(&cudaTexture, dataTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore));
             }
         }
 
-        printf("render %dx%d from (%d; %d) to (%d; %d)\n", spanX, spanY, minX, minY, maxX, maxY);
+        glClearTexImage(dataTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &fill);
 
-        cudaArray *cuda_array;
+        cudaArray_t cuda_array;
 
-        cuda_assert(cudaGraphicsMapResources(1, &cudaTexture, stream));
+        cuda_assert(cudaGraphicsMapResources(1, &cudaTexture));
         cuda_assert(cudaGraphicsSubResourceGetMappedArray(&cuda_array, cudaTexture, 0, 0));
         
-        cudaResourceDesc resDesc {};
-        resDesc.resType = cudaResourceTypeArray;
         resDesc.res.array.array = cuda_array;
         cudaSurfaceObject_t surface;
         cuda_assert(cudaCreateSurfaceObject(&surface, &resDesc));
 
         render<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(surface, map.getChunks(), step, minX, minY, maxX, maxY);
+        cuda_assert(cudaPeekAtLastError());
 
-        cuda_assert(cudaGraphicsUnmapResources(1, &cudaTexture, stream));
+        cuda_assert(cudaDeviceSynchronize());
+
+        cuda_assert(cudaDestroySurfaceObject(surface));
+
+        cuda_assert(cudaGraphicsUnmapResources(1, &cudaTexture));
+
+        cuda_assert(cudaDeviceSynchronize());
 
         glm::mat4 view(1.f);
         view = glm::translate(view, glm::vec3(
@@ -263,10 +280,12 @@ int main(void) {
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        /*grid.use();
-        grid.transform.set(1, false, glm::value_ptr(cameraTransform));
+        grid.use();
+        grid.view.set(1, false, glm::value_ptr(view));
+        grid.model.set(1, false, glm::value_ptr(model));
+        grid.tileCount.set(texWidth, texHeight);
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);*/
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
     }

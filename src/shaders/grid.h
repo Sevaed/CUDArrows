@@ -4,16 +4,19 @@
 
 const char *gridVertex = R"%==%(
 #version 330 core
-layout (location = 0) in vec2 position;
+layout (location = 0) in vec4 position;
 
 out vec2 texCoord;
 
-uniform mat4 transform;
+uniform vec2 tileCount;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
 
 void main() {
-    vec4 texPos = vec4(position.x, 1.0 - position.y, 0.0, 1.0);
-    texCoord = (transform * texPos).xy;
-    gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
+    texCoord = position.xy * tileCount;
+    gl_Position = projection * view * model * position;
 }
 )%==%";
 
@@ -50,9 +53,9 @@ void main() {
 namespace cudarrows {
     class GridShader : public BaseShader {
     public:
-        gl::UniformMatrix4fv transform;
+        gl::Uniform2f tileCount;
 
         GridShader() : BaseShader(gridVertex, gridFragment),
-            transform(program.getUniform<gl::UniformMatrix4fv>("transform")) {}
+            tileCount(program.getUniform<gl::Uniform2f>("tileCount")) {}
     };
 };

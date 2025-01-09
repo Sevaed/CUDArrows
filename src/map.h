@@ -62,12 +62,12 @@ namespace cudarrows {
     };
 
     struct Chunk {
-        uint16_t x, y;
+        int16_t x, y;
         Chunk *adjacentChunks[8] = { nullptr };
         Arrow arrows[CHUNK_SIZE * CHUNK_SIZE];
         ArrowState states[CHUNK_SIZE * CHUNK_SIZE][2];
 
-        Chunk(uint16_t x, uint16_t y) : x(x), y(y) {}
+        Chunk(int16_t x, int16_t y) : x(x), y(y) {}
 
         Chunk() : Chunk(0, 0) {}
     };
@@ -87,12 +87,12 @@ namespace cudarrows {
 
         size_t countChunks() const { return chunks.size(); };
 
-        const Chunk getChunk(uint16_t x, uint16_t y);
+        const Chunk getChunk(int16_t x, int16_t y);
 
-        void setChunk(uint16_t x, uint16_t y, Chunk chunk);
+        void setChunk(int16_t x, int16_t y, Chunk chunk);
 
-        const Arrow getArrow(uint32_t x, uint32_t y);
+        const Arrow getArrow(int32_t x, int32_t y);
 
-        void setArrow(uint32_t x, uint32_t y, Arrow arrow);
+        void setArrow(int32_t x, int32_t y, Arrow arrow);
     };
 };
