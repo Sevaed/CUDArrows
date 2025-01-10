@@ -1,4 +1,5 @@
 #include "chunkupdates.h"
+#include "util/atomic_uint8.h"
 
 __device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, uint3 pos, int8_t dx, int8_t dy) {
     if (arrow.flipped)
@@ -62,7 +63,7 @@ __device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk
 
 __device__ void sendSignal(cudarrows::Arrow *arrow, uint8_t step) {
     if (arrow && arrow->type != cudarrows::ArrowType::Void)
-        ++arrow->state[step].signalCount;
+        atomicAdd(&arrow->state[step].signalCount, (uint8_t)1U);
 }
 
 __device__ void blockSignal(cudarrows::Arrow *arrow, uint8_t step) {

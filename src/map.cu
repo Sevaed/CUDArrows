@@ -10,7 +10,7 @@ namespace cudarrows {
 
         has_position(int16_t x, int16_t y) : x(x), y(y) {}
 
-        __host__ __device__ bool operator()(cudarrows::Chunk chunk) {
+        __host__ __device__ bool operator()(const cudarrows::Chunk &chunk) {
             return chunk.x == x && chunk.y == y;
         }
     };

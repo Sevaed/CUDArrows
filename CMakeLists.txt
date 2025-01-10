@@ -19,6 +19,7 @@ add_executable(cudarrows
   src/map.cu
   src/base64/base64.cpp
   src/util/reader.cpp
+  src/util/atomic_uint8.cu
 )
 
 add_custom_command(TARGET cudarrows POST_BUILD

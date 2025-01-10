@@ -230,12 +230,12 @@ int main(int argc, char *argv[]) {
     bool playing = true,
          doStepFlag = false;
 
-    double lastUpdate = glfwGetTime();
+    double nextUpdate = glfwGetTime();
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
-            lastUpdate = glfwGetTime();
+            nextUpdate = glfwGetTime() + 1.0 / targetTPS;
             continue;
         }
 
@@ -264,18 +264,18 @@ int main(int argc, char *argv[]) {
             targetTPS = 1;
 
         if (playing) {
-            while (glfwGetTime() - lastUpdate >= 1.0 / targetTPS) {
+            while (glfwGetTime() >= nextUpdate) {
                 std::swap(step, nextStep);
                 update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
-                lastUpdate = glfwGetTime();
+                nextUpdate += 1.0 / targetTPS;
             }
         } else {
-             if (doStepFlag) {
+            if (doStepFlag) {
                 std::swap(step, nextStep);
                 update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
                 doStepFlag = false;
-             }
-            lastUpdate = glfwGetTime();
+            }
+            nextUpdate = glfwGetTime() + 1.0 / targetTPS;
         }
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
