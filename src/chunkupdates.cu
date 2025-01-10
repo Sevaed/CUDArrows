@@ -72,8 +72,6 @@ __device__ void blockSignal(cudarrows::Arrow *arrow, uint8_t step) {
 
 __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep) {
     cudarrows::Chunk &chunk = chunks[blockIdx.x];
-    int32_t x = chunk.x * CHUNK_SIZE + threadIdx.x;
-    int32_t y = chunk.y * CHUNK_SIZE + threadIdx.y;
     uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
     cudarrows::Arrow &arrow = chunk.arrows[idx];
     cudarrows::ArrowState &state = arrow.state[step];
@@ -229,4 +227,10 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
     }
     state.signalCount = 0;
     state.blocked = false;
+}
+
+__global__ void reset(cudarrows::Chunk *chunks) {
+    cudarrows::Chunk &chunk = chunks[blockIdx.x];
+    uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
+    chunk.arrows[idx].state[blockIdx.y] = cudarrows::ArrowState();
 }

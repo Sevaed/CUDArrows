@@ -227,7 +227,8 @@ int main(int argc, char *argv[]) {
 
     int targetTPS = 3;
 
-    bool playing = true;
+    bool playing = true,
+         doStepFlag = false;
 
     double lastUpdate = glfwGetTime();
 
@@ -262,12 +263,13 @@ int main(int argc, char *argv[]) {
         if (targetTPS < 1)
             targetTPS = 1;
 
-        if (playing) {
+        if (playing || doStepFlag) {
             while (glfwGetTime() - lastUpdate >= 1.0 / targetTPS) {
                 update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
                 std::swap(step, nextStep);
                 lastUpdate = glfwGetTime();
             }
+            doStepFlag = false;
         }
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -395,7 +397,19 @@ int main(int argc, char *argv[]) {
 
             ImGui::Checkbox("Playing", &playing);
 
+            if (!playing) {
+                ImGui::SameLine();
+
+                if (ImGui::Button("Step")) {
+                    doStepFlag = true;
+                }
+            }
+
             ImGui::InputInt("TPS", &targetTPS);
+
+            if (ImGui::Button("Reset map")) {
+                reset<<<dim3(map.countChunks(), 2), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks());
+            }
 
             ImGui::End();
         }
