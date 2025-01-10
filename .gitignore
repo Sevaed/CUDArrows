@@ -1,4 +1,5 @@
-/.vscode
-/build
+.vscode
+vcpkg_installed
 vcpkg-configuration.json
+/build
 *.pdb

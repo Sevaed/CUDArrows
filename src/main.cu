@@ -11,6 +11,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 #include "shaders/arrows.h"
 #include "shaders/grid.h"
 #include "camera.h"
@@ -69,7 +72,7 @@ int main(int argc, char *argv[]) {
     std::set_terminate(cudarrows_terminate);
 
     if (argc < 2) {
-        printf("Usage: cudarrows <map-code>\n");
+        printf("Usage: %s <map-code>\n", argv[0]);
         return 1;
     }
 
@@ -133,16 +136,22 @@ int main(int argc, char *argv[]) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    fs::path atlasPath(argv[0]);
-    atlasPath = atlasPath.parent_path();
-    atlasPath = atlasPath.append("res").append("atlas.png");
-    if (!fs::exists(atlasPath)) {
-        fprintf(stderr, "Failed load texture atlas\n");
-        return 1;
-    }
+    fs::path resourcesPath(argv[0]);
+    resourcesPath = resourcesPath.parent_path();
+    resourcesPath.append("res");
+
+    fs::path atlasPath(resourcesPath);
+    atlasPath.append("atlas.png");
+
+    fs::path fontPath(resourcesPath);
+    fontPath.append("Nunito.ttf");
 
     int atlasWidth, atlasHeight;
     GLubyte *atlasData = stbi_load(atlasPath.string().c_str(), &atlasWidth, &atlasHeight, NULL, 0);
+    if (!atlasData) {
+        fprintf(stderr, "Failed load texture atlas\n");
+        return 1;
+    }
 
     GLuint atlasTexture;
 
@@ -201,10 +210,33 @@ int main(int argc, char *argv[]) {
     GLsizei texWidth, texHeight,
             lastSpanX, lastSpanY;
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsLight();
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330 core");
+
+    io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 24.0f);
+
+    bool controlsWindowVisible = true,
+         debugWindowVisible = false;
+
+    int targetTPS = 3;
+
+    bool playing = true;
+
+    double lastUpdate = glfwGetTime();
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0)
+        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
+            lastUpdate = glfwGetTime();
             continue;
+        }
 
         double mouseX, mouseY;
         glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -227,8 +259,16 @@ int main(int argc, char *argv[]) {
         lastMouseX = mouseX;
         lastMouseY = mouseY;
 
-        update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
-        std::swap(step, nextStep);
+        if (targetTPS < 1)
+            targetTPS = 1;
+
+        if (playing) {
+            while (glfwGetTime() - lastUpdate >= 1.0 / targetTPS) {
+                update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
+                std::swap(step, nextStep);
+                lastUpdate = glfwGetTime();
+            }
+        }
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -290,7 +330,6 @@ int main(int argc, char *argv[]) {
         cuda_assert(cudaCreateSurfaceObject(&surface, &resDesc));
 
         render<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(surface, map.getChunks(), step, minX, minY, maxX, maxY);
-        cuda_assert(cudaPeekAtLastError());
 
         cuda_assert(cudaDestroySurfaceObject(surface));
 
@@ -327,8 +366,62 @@ int main(int argc, char *argv[]) {
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("App")) {
+                if (ImGui::MenuItem("Exit", "Alt+F4")) {
+                    break;
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Controls", NULL, &controlsWindowVisible);
+
+                ImGui::MenuItem("Debug", NULL, &debugWindowVisible);
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
+
+        if (controlsWindowVisible) {
+            ImGui::Begin("Controls", &controlsWindowVisible);
+
+            ImGui::Checkbox("Playing", &playing);
+
+            ImGui::InputInt("TPS", &targetTPS);
+
+            ImGui::End();
+        }
+
+        if (debugWindowVisible) {
+            ImGui::Begin("Debug", &debugWindowVisible);
+
+            ImGui::Text("Game is running at %.1f TPS (%.1f FPS)", io.Framerate, io.Framerate);
+
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    cuda_assert(cudaGraphicsUnregisterResource(cudaTexture));
+
+    glDeleteTextures(1, &atlasTexture);
+    glDeleteTextures(1, &dataTexture);
 
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);

@@ -6,6 +6,7 @@ find_package(glad CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 add_executable(cudarrows
   src/main.cu
@@ -32,7 +33,7 @@ set_target_properties(cudarrows
 
 target_include_directories(cudarrows PRIVATE ${PROJECT_SOURCE_DIR}/src ${Stb_INCLUDE_DIR})
 
-target_link_libraries(cudarrows PRIVATE glfw glad::glad glm::glm ${OPENGL_LIBRARIES})
+target_link_libraries(cudarrows PRIVATE glfw glad::glad glm::glm ${OPENGL_LIBRARIES} imgui::imgui)
 
 if(APPLE)
   set_property(TARGET cudarrows

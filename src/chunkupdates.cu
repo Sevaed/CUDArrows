@@ -1,8 +1,10 @@
 #include "chunkupdates.h"
 
-__device__ cudarrows::Arrow *getArrow(cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, int8_t x, int8_t y, int8_t dx, int8_t dy) {
+__device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, uint3 pos, int8_t dx, int8_t dy) {
     if (arrow.flipped)
         dx = -dx;
+    int16_t x = pos.x;
+    int16_t y = pos.y;
     switch (arrow.rotation) {
         case cudarrows::ArrowRotation::North:
             y += dy;
@@ -24,35 +26,35 @@ __device__ cudarrows::Arrow *getArrow(cudarrows::Chunk &chunk, cudarrows::Arrow 
     cudarrows::Chunk *targetChunk = &chunk;
     if (x >= CHUNK_SIZE) {
         if (y >= CHUNK_SIZE) {
-            targetChunk = chunk.adjacentChunks[3];
+            targetChunk = chunk.adjacentChunks[3] == 0 ? nullptr : chunks + chunk.adjacentChunks[3];
             x -= CHUNK_SIZE;
             y -= CHUNK_SIZE;
       }  else if (y < 0) {
-            targetChunk = chunk.adjacentChunks[1];
+            targetChunk = chunk.adjacentChunks[1] == 0 ? nullptr : chunks + chunk.adjacentChunks[1] - 1;
             x -= CHUNK_SIZE;
             y += CHUNK_SIZE;
         } else {
-            targetChunk = chunk.adjacentChunks[2];
+            targetChunk = chunk.adjacentChunks[2] == 0 ? nullptr : chunks + chunk.adjacentChunks[2] - 1;
             x -= CHUNK_SIZE;
         }
     } else if (x < 0) {
         if (y < 0) {
-            targetChunk = chunk.adjacentChunks[7];
+            targetChunk = chunk.adjacentChunks[7] == 0 ? nullptr : chunks + chunk.adjacentChunks[7] - 1;
             x += CHUNK_SIZE;
             y += CHUNK_SIZE;
         } else if (y >= CHUNK_SIZE) {
-            targetChunk = chunk.adjacentChunks[5];
+            targetChunk = chunk.adjacentChunks[5] == 0 ? nullptr : chunks + chunk.adjacentChunks[5] - 1;
             x += CHUNK_SIZE;
             y -= CHUNK_SIZE;
         } else {
-            targetChunk = chunk.adjacentChunks[6];
+            targetChunk = chunk.adjacentChunks[6] == 0 ? nullptr : chunks + chunk.adjacentChunks[6] - 1;
             x += CHUNK_SIZE;
         }
     } else if (y < 0) {
-        targetChunk = chunk.adjacentChunks[0];
+        targetChunk = chunk.adjacentChunks[0] == 0 ? nullptr : chunks + chunk.adjacentChunks[0] - 1;
         y += CHUNK_SIZE;
     } else if (y >= CHUNK_SIZE) {
-        targetChunk = chunk.adjacentChunks[4];
+        targetChunk = chunk.adjacentChunks[4] == 0 ? nullptr : chunks + chunk.adjacentChunks[4] - 1;
         y -= CHUNK_SIZE;
     }
     return targetChunk == nullptr ? nullptr : &targetChunk->arrows[y * CHUNK_SIZE + x];
@@ -91,19 +93,19 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
     switch (arrow.type) {
         case cudarrows::ArrowType::ArrowUp:
             if (prevState.signal == cudarrows::ArrowSignal::Red)
-                sendSignal(getArrow(chunk, arrow, x, y, 0, -1), nextStep);
+                sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
         case cudarrows::ArrowType::Source:
             if (prevState.signal == cudarrows::ArrowSignal::Red) {
-                sendSignal(getArrow(chunk, arrow, x, y,  0, -1), nextStep);
-                sendSignal(getArrow(chunk, arrow, x, y,  1,  0), nextStep);
-                sendSignal(getArrow(chunk, arrow, x, y,  0,  1), nextStep);
-                sendSignal(getArrow(chunk, arrow, x, y, -1,  0), nextStep);
+                sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0, -1), nextStep);
+                sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  1,  0), nextStep);
+                sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0,  1), nextStep);
+                sendSignal(getArrow(chunks, chunk, arrow, threadIdx, -1,  0), nextStep);
             }
             break;
         case cudarrows::ArrowType::Blocker:
             if (prevState.signal == cudarrows::ArrowSignal::Red)
-                blockSignal(getArrow(chunk, arrow, x, y, 0, -1), nextStep);
+                blockSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
     }
     state.signalCount = 0;
