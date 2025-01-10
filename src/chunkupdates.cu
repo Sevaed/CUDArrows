@@ -107,7 +107,7 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
                 break;   
             }
             case cudarrows::ArrowType::PulseGenerator:
-                state.signal = prevState.signal == cudarrows::ArrowSignal::Red ? cudarrows::ArrowSignal::Blue : cudarrows::ArrowSignal::Red;
+                state.signal = prevState.signal == cudarrows::ArrowSignal::White ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::Blue;
                 break;
             case cudarrows::ArrowType::BlueArrow:
             case cudarrows::ArrowType::DiagonalArrow:
@@ -126,12 +126,16 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
                 state.signal = state.signalCount % 2 == 1 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
                 break;
             case cudarrows::ArrowType::Latch:
-                if (state.signalCount > 0)
-                    state.signal = state.signalCount >= 2 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
+                state.signal =
+                    state.signalCount > 0 ?
+                        state.signalCount >= 2 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White :
+                        prevState.signal;
                 break;
             case cudarrows::ArrowType::Flipflop:
-                if (state.signalCount > 0)
-                    state.signal = (cudarrows::ArrowSignal)((uint8_t)cudarrows::ArrowSignal::Yellow - (uint8_t)prevState.signal);
+                state.signal =
+                    state.signalCount > 0 ?
+                        (cudarrows::ArrowSignal)((uint8_t)cudarrows::ArrowSignal::Yellow - (uint8_t)prevState.signal) :
+                        prevState.signal;
                 break;
             case cudarrows::ArrowType::DirectionalButton:
                 state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
@@ -142,12 +146,12 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
         case cudarrows::ArrowType::DelayArrow:
         case cudarrows::ArrowType::SignalDetector:
         case cudarrows::ArrowType::Source:
-            if (prevState.signal == cudarrows::ArrowSignal::Red)
+            if (state.signal == cudarrows::ArrowSignal::Red)
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
         case cudarrows::ArrowType::SourceBlock:
         case cudarrows::ArrowType::PulseGenerator:
-            if (prevState.signal == cudarrows::ArrowSignal::Red) {
+            if (state.signal == cudarrows::ArrowSignal::Red) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  1,  0), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0,  1), nextStep);
@@ -155,50 +159,50 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
             }
             break;
         case cudarrows::ArrowType::Blocker:
-            if (prevState.signal == cudarrows::ArrowSignal::Red)
+            if (state.signal == cudarrows::ArrowSignal::Red)
                 blockSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
         case cudarrows::ArrowType::SplitterUpDown:
-            if (prevState.signal == cudarrows::ArrowSignal::Red) {
+            if (state.signal == cudarrows::ArrowSignal::Red) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0,  1), nextStep);
             }
             break;
         case cudarrows::ArrowType::SplitterUpRight:
-            if (prevState.signal == cudarrows::ArrowSignal::Red) {
+            if (state.signal == cudarrows::ArrowSignal::Red) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 1,  0), nextStep);
             }
             break;
         case cudarrows::ArrowType::SplitterUpLeftRight:
-            if (prevState.signal == cudarrows::ArrowSignal::Red) {
+            if (state.signal == cudarrows::ArrowSignal::Red) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, -1,  0), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  1,  0), nextStep);
             }
             break;
         case cudarrows::ArrowType::BlueArrow:
-            if (prevState.signal == cudarrows::ArrowSignal::Blue)
+            if (state.signal == cudarrows::ArrowSignal::Blue)
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -2), nextStep);
             break;
         case cudarrows::ArrowType::DiagonalArrow:
-            if (prevState.signal == cudarrows::ArrowSignal::Blue)
+            if (state.signal == cudarrows::ArrowSignal::Blue)
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 1, -1), nextStep);
             break;
         case cudarrows::ArrowType::BlueSplitterUpUp:
-            if (prevState.signal == cudarrows::ArrowSignal::Blue) {
+            if (state.signal == cudarrows::ArrowSignal::Blue) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -2), nextStep);
             }
             break;
         case cudarrows::ArrowType::BlueSplitterUpRight:
-            if (prevState.signal == cudarrows::ArrowSignal::Blue) {
+            if (state.signal == cudarrows::ArrowSignal::Blue) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -2), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 1,  0), nextStep);
             }
             break;
         case cudarrows::ArrowType::BlueSplitterUpDiagonal:
-            if (prevState.signal == cudarrows::ArrowSignal::Blue) {
+            if (state.signal == cudarrows::ArrowSignal::Blue) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 1, -1), nextStep);
             }
@@ -208,16 +212,16 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
         case cudarrows::ArrowType::XorGate:
         case cudarrows::ArrowType::Latch:
         case cudarrows::ArrowType::Flipflop:
-            if (prevState.signal == cudarrows::ArrowSignal::Yellow)
+            if (state.signal == cudarrows::ArrowSignal::Yellow)
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
         case cudarrows::ArrowType::Randomizer:
         case cudarrows::ArrowType::DirectionalButton:
-            if (prevState.signal == cudarrows::ArrowSignal::Orange)
+            if (state.signal == cudarrows::ArrowSignal::Orange)
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
         case cudarrows::ArrowType::Button:
-            if (prevState.signal == cudarrows::ArrowSignal::Orange) {
+            if (state.signal == cudarrows::ArrowSignal::Orange) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  1,  0), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0,  1), nextStep);

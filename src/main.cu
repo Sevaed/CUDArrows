@@ -263,13 +263,19 @@ int main(int argc, char *argv[]) {
         if (targetTPS < 1)
             targetTPS = 1;
 
-        if (playing || doStepFlag) {
+        if (playing) {
             while (glfwGetTime() - lastUpdate >= 1.0 / targetTPS) {
-                update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
                 std::swap(step, nextStep);
+                update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
                 lastUpdate = glfwGetTime();
             }
-            doStepFlag = false;
+        } else {
+             if (doStepFlag) {
+                std::swap(step, nextStep);
+                update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
+                doStepFlag = false;
+             }
+            lastUpdate = glfwGetTime();
         }
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
