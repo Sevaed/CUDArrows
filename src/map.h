@@ -19,9 +19,9 @@ namespace cudarrows {
         PulseGenerator,
         BlueArrow,
         DiagonalArrow,
-        BlieSplitterUpUp,
+        BlueSplitterUpUp,
         BlueSplitterUpRight,
-        BlieSplitterUpDiagonal,
+        BlueSplitterUpDiagonal,
         NotGate,
         AndGate,
         XorGate,
@@ -29,6 +29,8 @@ namespace cudarrows {
         Flipflop,
         Randomizer,
         Button,
+        Source,
+        Target,
         DirectionalButton
     };
 
