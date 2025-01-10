@@ -61,12 +61,12 @@ __device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk
 }
 
 __device__ void sendSignal(cudarrows::Arrow *arrow, uint8_t step) {
-    if (arrow && arrow->type != 0)
+    if (arrow && arrow->type != cudarrows::ArrowType::Void)
         ++arrow->state[step].signalCount;
 }
 
 __device__ void blockSignal(cudarrows::Arrow *arrow, uint8_t step) {
-    if (arrow && arrow->type != 0)
+    if (arrow && arrow->type != cudarrows::ArrowType::Void)
         arrow->state[step].blocked = true;
 }
 
@@ -82,20 +82,20 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
         state.signal = cudarrows::ArrowSignal::White;
     else
         switch (arrow.type) {
-            case cudarrows::ArrowType::ArrowUp:
+            case cudarrows::ArrowType::Arrow:
             case cudarrows::ArrowType::Blocker:
                 state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
                 break;
-            case cudarrows::ArrowType::Source:
+            case cudarrows::ArrowType::SourceBlock:
                 state.signal = cudarrows::ArrowSignal::Red;
                 break;
         }
     switch (arrow.type) {
-        case cudarrows::ArrowType::ArrowUp:
+        case cudarrows::ArrowType::Arrow:
             if (prevState.signal == cudarrows::ArrowSignal::Red)
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx, 0, -1), nextStep);
             break;
-        case cudarrows::ArrowType::Source:
+        case cudarrows::ArrowType::SourceBlock:
             if (prevState.signal == cudarrows::ArrowSignal::Red) {
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  0, -1), nextStep);
                 sendSignal(getArrow(chunks, chunk, arrow, threadIdx,  1,  0), nextStep);

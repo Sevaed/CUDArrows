@@ -9,6 +9,6 @@ __global__ void render(cudaSurfaceObject_t surf, const cudarrows::Chunk *chunks,
     y -= minY;
     uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
     const cudarrows::Arrow &arrow = chunk.arrows[idx];
-    uchar4 data = { arrow.type, arrow.rotation + (uint8_t)0x4 * arrow.flipped, arrow.state[step].signal, 255 };
+    uchar4 data = { (uint8_t)arrow.type, (uint8_t)arrow.rotation + (uint8_t)0x4 * arrow.flipped, (uint8_t)arrow.state[step].signal, 255 };
     surf2Dwrite(data, surf, x * sizeof(data), y);
 }

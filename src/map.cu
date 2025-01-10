@@ -65,7 +65,7 @@ void cudarrows::Map::setChunk(cudarrows::Chunk chunk) {
             { chunk.x - 1, chunk.y     },
             { chunk.x - 1, chunk.y - 1 }
         };
-        for (uint8_t i = 0; i < sizeof(neighbours) / sizeof(neighbours[0]); ++i) {
+        for (uint8_t i = 0; i < sizeof(neighbours) / sizeof(neighbours[0]); ++i) { // TODO: Change this to some thrust API to modify adjacent chunks
             iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(neighbours[i][0], neighbours[i][1]));
             if (iter != chunks.end()) {
                 chunk.adjacentChunks[i] = thrust::distance(chunks.begin(), iter) + 1;

@@ -6,40 +6,40 @@
 #define CHUNK_SIZE 16
 
 namespace cudarrows {
-    enum ArrowType : uint8_t {
+    enum class ArrowType : uint8_t {
         Void,
-        ArrowUp,
-        Source,
+        Arrow,
+        SourceBlock,
         Blocker,
-        Delay,
-        Detector,
-        ArrowUpDown,
-        ArrowUpRight,
-        ArrowUpLeftRight,
-        Pulse,
-        ArrowUp2,
-        ArrowDiagonal,
-        ArrowUp2Up,
-        ArrowUp2Right,
-        ArrowUpDiagonal,
-        Not,
-        And,
-        Xor,
+        DelayArrow,
+        SignalDetector,
+        SplitterUpDown,
+        SplitterUpRight,
+        SplitterUpLeftRight,
+        PulseGenerator,
+        BlueArrow,
+        DiagonalArrow,
+        BlieSplitterUpUp,
+        BlueSplitterUpRight,
+        BlieSplitterUpDiagonal,
+        NotGate,
+        AndGate,
+        XorGate,
         Latch,
         Flipflop,
         Randomizer,
-        ButtonUpDownLeftRight,
-        ButtonUp
+        Button,
+        DirectionalButton
     };
 
-    enum ArrowRotation : uint8_t {
+    enum class ArrowRotation : uint8_t {
         North,
         East,
         South,
         West
     };
 
-    enum ArrowSignal : uint8_t {
+    enum class ArrowSignal : uint8_t {
         White,
         Red,
         Blue,
