@@ -7,4 +7,8 @@ static void cuda_check(const char *file, int line, cudaError_t error) {
     }
 }
 
+#ifdef NDEBUG
+#define cuda_assert(error) error
+#else
 #define cuda_assert(error) cuda_check(__FILE__, __LINE__, error)
+#endif

@@ -70,7 +70,9 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+#ifndef NDEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#endif
 
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
@@ -87,7 +89,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+#ifndef NDEBUG
     glEnable(GL_DEBUG_OUTPUT);
+#endif
 
     GLfloat vertices[] = {
         1.f, 1.f, 0.f, 1.f,
