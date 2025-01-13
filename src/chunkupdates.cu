@@ -1,5 +1,6 @@
-#include "chunkupdates.h"
-#include "util/atomic_uint8.h"
+#include <curand_kernel.h>
+#include "chunkupdates.cuh"
+#include "util/atomic_uint8.cuh"
 
 __device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, uint3 pos, int8_t dx, int8_t dy) {
     if (arrow.flipped)
@@ -138,8 +139,19 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
                         (cudarrows::ArrowSignal)((uint8_t)cudarrows::ArrowSignal::Yellow - (uint8_t)prevState.signal) :
                         prevState.signal;
                 break;
+            case cudarrows::ArrowType::Randomizer:
+                state.signal =
+                    state.signalCount > 0 && curand(&arrow.input.curandState) > 2147483647 ?
+                        cudarrows::ArrowSignal::Orange :
+                        cudarrows::ArrowSignal::White;
+                break;
+            case cudarrows::ArrowType::Button:
+                state.signal = arrow.input.buttonPressed ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
+                arrow.input.buttonPressed = false;
+                break;
             case cudarrows::ArrowType::DirectionalButton:
-                state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
+                state.signal = arrow.input.buttonPressed || state.signalCount > 0 ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
+                arrow.input.buttonPressed = false;
                 break;
         }
     switch (arrow.type) {
@@ -234,8 +246,21 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
     state.blocked = false;
 }
 
-__global__ void reset(cudarrows::Chunk *chunks) {
+__global__ void reset(cudarrows::Chunk *chunks, uint64_t seed) {
     cudarrows::Chunk &chunk = chunks[blockIdx.x];
     uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
-    chunk.arrows[idx].state[blockIdx.y] = cudarrows::ArrowState();
+    cudarrows::Arrow &arrow = chunk.arrows[idx];
+    arrow.state[blockIdx.y] = cudarrows::ArrowState();
+    if (blockIdx.y == 0)
+        switch (arrow.type) {
+            case cudarrows::ArrowType::Button:
+            case cudarrows::ArrowType::DirectionalButton:
+                arrow.input.buttonPressed = false;
+                break;
+            case cudarrows::ArrowType::Randomizer: {
+                unsigned long long subsequence = ((uint16_t)chunk.y << 24) | ((uint16_t)chunk.x << 8) | idx;
+                curand_init(seed, subsequence, 0, &arrow.input.curandState);
+                break;
+            }
+        }
 }

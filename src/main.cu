@@ -14,18 +14,15 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include "util/cuda_assert.cuh"
 #include "shaders/arrows.h"
 #include "shaders/grid.h"
 #include "camera.h"
-#include "map.h"
-#include "chunkupdates.h"
-#include "render.h"
+#include "map.cuh"
 
 #define CELL_SIZE 64.0f
 
 namespace fs = std::filesystem;
-
-float scroll = 0.0;
 
 static void cudarrows_terminate() {
     try {
@@ -44,19 +41,6 @@ static void glfw_error_callback(int error, const char* description) {
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
-
-static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    scroll += static_cast<float>(yoffset);
-}
-
-static void cuda_check(const char *file, int line, cudaError_t error) {
-    if (error != cudaError::cudaSuccess) {
-        fprintf(stderr, "CUDA Error (%s:%d) %d: %s\n", file, line, error, cudaGetErrorString(error));
-        abort();
-    }
-}
-
-#define cuda_assert(error) cuda_check(__FILE__, __LINE__, error)
 
 GLsizei roundToPowerOf2(GLsizei n) {
     --n;
@@ -97,7 +81,6 @@ int main(int argc, char *argv[]) {
     glfwSwapInterval(1);
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetScrollCallback(window, scroll_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         fprintf(stderr, "Failed to initialize GLAD\n");
@@ -170,7 +153,7 @@ int main(int argc, char *argv[]) {
 
     stbi_image_free(atlasData);
 
-    cudarrows::Map map;
+    cudarrows::Map map(argv[1]);
 
     cudarrows::ArrowsShader arrows;
     cudarrows::GridShader grid;
@@ -180,12 +163,9 @@ int main(int argc, char *argv[]) {
 
     cudarrows::Camera camera(0.f, 0.f, 1.f);
 
-    map.load(argv[1]);
+    map.reset(time(NULL));
 
-    double lastMouseX, lastMouseY;
-    float lastCameraX, lastCameraY;
-
-    uint8_t step = 0, nextStep = 1;
+    float lastCameraX = camera.xOffset, lastCameraY = camera.yOffset;
 
     glm::mat4 projection = glm::ortho(0.f, 1.f, 1.f, 0.f);
 
@@ -232,6 +212,8 @@ int main(int argc, char *argv[]) {
 
     double nextUpdate = glfwGetTime();
 
+    bool buttonHovered = false;
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
@@ -239,40 +221,56 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        double mouseX, mouseY;
-        glfwGetCursorPos(window, &mouseX, &mouseY);
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
-        bool wheelDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS;
+        if (!io.WantCaptureMouse) {
+            bool mouseMoved = io.MousePos.x != io.MousePosPrev.x || io.MousePos.y != io.MousePosPrev.y;
 
-        if (wheelDown) {
-            camera.xOffset = static_cast<float>(lastCameraX + mouseX - lastMouseX);
-            camera.yOffset = static_cast<float>(lastCameraY + mouseY - lastMouseY);
+            if (io.MouseDown[2] && mouseMoved) {
+                camera.xOffset = static_cast<float>(lastCameraX + io.MousePos.x - io.MousePosPrev.x);
+                camera.yOffset = static_cast<float>(lastCameraY + io.MousePos.y - io.MousePosPrev.y);
+            }
+
+            int32_t arrowX = int32_t(floor((-camera.xOffset + io.MousePos.x) / CELL_SIZE / camera.getScale()));
+            int32_t arrowY = int32_t(floor((-camera.yOffset + io.MousePos.y) / CELL_SIZE / camera.getScale()));
+
+            if (!io.MouseDown[2] && mouseMoved) {
+                cudarrows::ArrowInfo arrow = map.getArrow(arrowX, arrowY);
+
+                buttonHovered = arrow.type == cudarrows::ArrowType::Button || arrow.type == cudarrows::ArrowType::DirectionalButton;
+            }
+
+            if (io.MouseReleased[0] && buttonHovered) {
+                cudarrows::ArrowInput input;
+                input.buttonPressed = true;
+
+                map.sendInput(arrowX, arrowY, input);
+            }
+
+            ImGui::SetMouseCursor(buttonHovered ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_Arrow);
         }
 
-        if (scroll > 0.0)
-            camera.setScale(camera.getScale() * scroll * 1.2f, static_cast<float>(mouseX), static_cast<float>(mouseY));
-        else if (scroll < 0.0)
-            camera.setScale(camera.getScale() / -scroll / 1.2f, static_cast<float>(mouseX), static_cast<float>(mouseY));
-        scroll = 0.0f;
+        if (io.MouseWheel > 0.0)
+            camera.setScale(camera.getScale() * io.MouseWheel * 1.2f, io.MousePos.x, io.MousePos.y);
+        else if (io.MouseWheel < 0.0)
+            camera.setScale(camera.getScale() / -io.MouseWheel / 1.2f, io.MousePos.x, io.MousePos.y);
 
         lastCameraX = camera.xOffset;
         lastCameraY = camera.yOffset;
-        lastMouseX = mouseX;
-        lastMouseY = mouseY;
 
         if (targetTPS < 1)
             targetTPS = 1;
 
         if (playing) {
             while (glfwGetTime() >= nextUpdate) {
-                std::swap(step, nextStep);
-                update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
+                map.update();
                 nextUpdate += 1.0 / targetTPS;
             }
         } else {
             if (doStepFlag) {
-                std::swap(step, nextStep);
-                update<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks(), step, nextStep);
+                map.update();
                 doStepFlag = false;
             }
             nextUpdate = glfwGetTime() + 1.0 / targetTPS;
@@ -281,16 +279,13 @@ int main(int argc, char *argv[]) {
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-
         int32_t minX = int32_t(-camera.xOffset / camera.getScale() / CELL_SIZE) - 1,
                 minY = int32_t(-camera.yOffset / camera.getScale() / CELL_SIZE) - 1,
-                maxX = int32_t((-camera.xOffset + width) / camera.getScale() / CELL_SIZE),
-                maxY = int32_t((-camera.yOffset + height) / camera.getScale() / CELL_SIZE);
+                maxX = int32_t((-camera.xOffset + io.DisplaySize.x) / camera.getScale() / CELL_SIZE),
+                maxY = int32_t((-camera.yOffset + io.DisplaySize.y) / camera.getScale() / CELL_SIZE);
         
-        GLsizei spanX = GLsizei(width / camera.getScale() / CELL_SIZE) + 2,
-                spanY = GLsizei(height / camera.getScale() / CELL_SIZE) + 2;
+        GLsizei spanX = GLsizei(io.DisplaySize.x / camera.getScale() / CELL_SIZE) + 2,
+                spanY = GLsizei(io.DisplaySize.y / camera.getScale() / CELL_SIZE) + 2;
 
         if (cudaTexture == nullptr || lastSpanX != spanX || lastSpanY != spanY) {
             lastSpanX = spanX;
@@ -337,7 +332,7 @@ int main(int argc, char *argv[]) {
         cudaSurfaceObject_t surface;
         cuda_assert(cudaCreateSurfaceObject(&surface, &resDesc));
 
-        render<<<map.countChunks(), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(surface, map.getChunks(), step, minX, minY, maxX, maxY);
+        map.render(surface, minX, minY, maxX, maxY);
 
         cuda_assert(cudaDestroySurfaceObject(surface));
 
@@ -347,19 +342,19 @@ int main(int argc, char *argv[]) {
 
         glm::mat4 view(1.f);
         view = glm::translate(view, glm::vec3(
-            camera.xOffset / width,
-            camera.yOffset / height,
+            camera.xOffset / io.DisplaySize.x,
+            camera.yOffset / io.DisplaySize.y,
             0.f
         ));
         view = glm::scale(view, glm::vec3(camera.getScale(), camera.getScale(), 1.f));
 
         glm::mat4 model(1.f);
         model = glm::translate(model, glm::vec3(
-            CELL_SIZE * minX / width,
-            CELL_SIZE * minY / height,
+            CELL_SIZE * minX / io.DisplaySize.x,
+            CELL_SIZE * minY / io.DisplaySize.y,
             0.f
         ));
-        model = glm::scale(model, glm::vec3(CELL_SIZE * texWidth / width, CELL_SIZE * texHeight / height, 1.f));
+        model = glm::scale(model, glm::vec3(CELL_SIZE * texWidth / io.DisplaySize.x, CELL_SIZE * texHeight / io.DisplaySize.y, 1.f));
 
         arrows.use();
         arrows.view.set(1, false, glm::value_ptr(view));
@@ -373,10 +368,6 @@ int main(int argc, char *argv[]) {
         grid.tileCount.set(texWidth, texHeight);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
 
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("App")) {
@@ -414,7 +405,7 @@ int main(int argc, char *argv[]) {
             ImGui::InputInt("TPS", &targetTPS);
 
             if (ImGui::Button("Reset map")) {
-                reset<<<dim3(map.countChunks(), 2), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>((cudarrows::Chunk *)map.getChunks());
+                map.reset(time(NULL));
             }
 
             ImGui::End();

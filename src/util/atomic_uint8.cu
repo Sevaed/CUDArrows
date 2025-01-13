@@ -1,4 +1,4 @@
-#include "util/atomic_uint8.h"
+#include "util/atomic_uint8.cuh"
 
 // https://stackoverflow.com/a/59329536/16475499
 __device__ unsigned char atomicAdd(unsigned char* address, unsigned char val) {

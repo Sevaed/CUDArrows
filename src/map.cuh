@@ -1,7 +1,8 @@
 #pragma once
+#include <string>
 #include <inttypes.h>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
+#include <curand.h>
+#include <curand_kernel.h>
 
 #define CHUNK_SIZE 16
 
@@ -51,20 +52,31 @@ namespace cudarrows {
         Magenta
     };
 
-    struct ArrowState {
+    struct __builtin_align__(8) ArrowInfo {
+        ArrowType type = ArrowType::Void;
+        ArrowRotation rotation : 2;
+        bool flipped : 1;
+
+        ArrowInfo() : rotation(ArrowRotation::North), flipped(false) {}
+    };
+
+    struct __builtin_align__(8) ArrowState {
         ArrowSignal signal = ArrowSignal::White;
         uint8_t signalCount = 0;
         bool blocked = false;
     };
 
-    struct Arrow {
-        ArrowType type = ArrowType::Void;
-        ArrowRotation rotation = ArrowRotation::North;
-        bool flipped = false;
-        ArrowState state[2];
+    union __builtin_align__(8) ArrowInput {
+        bool buttonPressed;
+        curandState_t curandState;
     };
 
-    struct Chunk {
+    struct __builtin_align__(8) Arrow : ArrowInfo {
+        ArrowState state[2];
+        ArrowInput input;
+    };
+
+    struct __builtin_align__(8) Chunk {
         int16_t x, y;
         size_t adjacentChunks[8] = { 0 };
         Arrow arrows[CHUNK_SIZE * CHUNK_SIZE];
@@ -76,23 +88,25 @@ namespace cudarrows {
 
     class Map {
     private:
-        thrust::device_vector<Chunk> chunks;
+        Chunk *chunks = NULL;
+        size_t chunkCount = 0;
+        uint8_t step = 0, nextStep = 1;
         
     public:
         Map() {}
 
-        void load(const std::string &save);
+        Map(const std::string &save);
 
-        const Chunk *getChunks() const { return thrust::raw_pointer_cast(chunks.data()); };
+        ~Map();
 
-        size_t countChunks() const { return chunks.size(); };
+        ArrowInfo getArrow(int32_t x, int32_t y);
 
-        const Chunk getChunk(int16_t x, int16_t y);
+        void sendInput(int32_t x, int32_t y, ArrowInput input);
 
-        void setChunk(Chunk chunk);
+        void reset(uint64_t seed);
 
-        const Arrow getArrow(int32_t x, int32_t y);
+        void update();
 
-        void setArrow(int32_t x, int32_t y, Arrow arrow);
+        void render(cudaSurfaceObject_t surface, int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
     };
 };

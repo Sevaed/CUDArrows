@@ -1,4 +1,4 @@
-#include "render.h"
+#include "render.cuh"
 
 __global__ void render(cudaSurfaceObject_t surf, const cudarrows::Chunk *chunks, uint8_t step, int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
     const cudarrows::Chunk &chunk = chunks[blockIdx.x];

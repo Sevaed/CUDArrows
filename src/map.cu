@@ -1,33 +1,42 @@
-#include <string>
 #include <stdexcept>
 #include "base64/base64.h"
+#include "util/cuda_assert.cuh"
 #include "util/reader.h"
-#include "map.h"
+#include "map.cuh"
+#include "chunkupdates.cuh"
+#include "render.cuh"
 
-namespace cudarrows {
-    struct has_position {
-        int16_t x, y;
+__global__ void getArrow(cudarrows::Chunk *chunks, int16_t chunkX, int16_t chunkY, int8_t x, int8_t y, cudarrows::ArrowInfo *arrowInfo) {
+    cudarrows::Chunk &chunk = chunks[blockIdx.x];
+    if (chunkX != chunk.x || chunkY != chunk.y) return;
+    uint8_t idx = y * CHUNK_SIZE + x;
+    cudarrows::Arrow &arrow = chunk.arrows[idx];
+    arrowInfo->type = arrow.type;
+    arrowInfo->rotation = arrow.rotation;
+    arrowInfo->flipped = arrow.flipped;
+}
 
-        has_position(int16_t x, int16_t y) : x(x), y(y) {}
+__global__ void sendInput(cudarrows::Chunk *chunks, int32_t x, int32_t y, cudarrows::ArrowInput input) {
+    cudarrows::Chunk &chunk = chunks[blockIdx.x];
+    if (x / CHUNK_SIZE != chunk.x || y / CHUNK_SIZE != chunk.y) return;
+    uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
+    cudarrows::Arrow &arrow = chunk.arrows[idx];
+    arrow.input = input;
+}
 
-        __host__ __device__ bool operator()(const cudarrows::Chunk &chunk) {
-            return chunk.x == x && chunk.y == y;
-        }
-    };
-};
-
-void cudarrows::Map::load(const std::string &save) {
+cudarrows::Map::Map(const std::string &save) {
     std::string buf = base64_decode(save);
     if (buf.size() < 4) return;
     util::Reader reader(buf);
     if (reader.read16() != 0)
         throw std::invalid_argument("Unsupported save version");
-    uint16_t chunkCount = reader.read16();
+    chunkCount = reader.read16();
+    cudarrows::Chunk *h_chunks = new cudarrows::Chunk[chunkCount];
     for (uint16_t i = 0; i < chunkCount; ++i) {
-        int16_t chunkX = reader.read16();
-        int16_t chunkY = reader.read16();
+        cudarrows::Chunk &chunk = h_chunks[i];
+        chunk.x = reader.read16();
+        chunk.y = reader.read16();
         uint8_t arrowTypeCount = reader.read8();
-        cudarrows::Chunk chunk = getChunk(chunkX, chunkY);
         for (uint8_t j = 0; j <= arrowTypeCount; ++j) {
             uint8_t type = reader.read8();
             uint8_t arrowCount = reader.read8();
@@ -36,58 +45,52 @@ void cudarrows::Map::load(const std::string &save) {
                 uint8_t arrowX = position & 0xF;
                 uint8_t arrowY = position >> 4;
                 uint8_t rotation = reader.read8();
-                chunk.arrows[arrowY * CHUNK_SIZE + arrowX] = { (cudarrows::ArrowType)type, (cudarrows::ArrowRotation)(rotation & 0x3), (bool)(rotation & 0x4) };
+                cudarrows::Arrow &arrow = chunk.arrows[arrowY * CHUNK_SIZE + arrowX];
+                arrow.type = (cudarrows::ArrowType)type;
+                arrow.rotation = (cudarrows::ArrowRotation)(rotation & 0x3);
+                arrow.flipped = rotation & 0x4;
                 if (k == 255) break;
             }
             if (j == 255) break;
         }
-        setChunk(chunk);
     }
+    cuda_assert(cudaMalloc(&chunks, sizeof(cudarrows::Chunk) * chunkCount));
+    cuda_assert(cudaMemcpy(chunks, h_chunks, sizeof(cudarrows::Chunk) * chunkCount, cudaMemcpyHostToDevice));
+    delete h_chunks;
 }
 
-const cudarrows::Chunk cudarrows::Map::getChunk(int16_t x, int16_t y) {
-    thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(x, y));
-    return iter == chunks.end() ? cudarrows::Chunk(x, y) : iter[0];
+cudarrows::Map::~Map() {
+    cuda_assert(cudaFree(chunks));
 }
 
-void cudarrows::Map::setChunk(cudarrows::Chunk chunk) {
-    thrust::device_vector<cudarrows::Chunk>::iterator iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(chunk.x, chunk.y));
-    if (iter != chunks.end())
-        iter[0] = chunk;
-    else {
-        int16_t neighbours[][2] = {
-            { chunk.x,     chunk.y - 1 },
-            { chunk.x + 1, chunk.y - 1 },
-            { chunk.x + 1, chunk.y     },
-            { chunk.x + 1, chunk.y + 1 },
-            { chunk.x,     chunk.y + 1 },
-            { chunk.x - 1, chunk.y + 1 },
-            { chunk.x - 1, chunk.y     },
-            { chunk.x - 1, chunk.y - 1 }
-        };
-        for (uint8_t i = 0; i < sizeof(neighbours) / sizeof(neighbours[0]); ++i) { // TODO: Change this to some thrust API to modify adjacent chunks
-            iter = thrust::find_if(chunks.begin(), chunks.end(), cudarrows::has_position(neighbours[i][0], neighbours[i][1]));
-            if (iter != chunks.end()) {
-                chunk.adjacentChunks[i] = thrust::distance(chunks.begin(), iter) + 1;
-                size_t offset = chunks.size() + 1;
-                cudarrows::Chunk *adjacentChunk = thrust::raw_pointer_cast(&iter[0]);
-                cudaMemcpy(&adjacentChunk->adjacentChunks[(i + 4) % 8], &offset, sizeof(offset), cudaMemcpyHostToDevice);
-            }
-        }
-        chunks.push_back(chunk);
-    }
-}
-
-const cudarrows::Arrow cudarrows::Map::getArrow(int32_t x, int32_t y) {
+cudarrows::ArrowInfo cudarrows::Map::getArrow(int32_t x, int32_t y) {
     int16_t chunkX = x / CHUNK_SIZE;
     int16_t chunkY = y / CHUNK_SIZE;
-    return getChunk(chunkX, chunkY).arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)];
+    x -= chunkX * CHUNK_SIZE;
+    y -= chunkY * CHUNK_SIZE;
+    cudarrows::ArrowInfo h_arrow, *d_arrow;
+    cudaMalloc(&d_arrow, sizeof(cudarrows::ArrowInfo));
+    size_t numThreads = chunkCount > 1024 ? 1024 : chunkCount;
+    size_t numBlocks = (chunkCount + numThreads - 1) / chunkCount;
+    ::getArrow<<<numBlocks, numThreads>>>(chunks, chunkX, chunkY, x, y, d_arrow);
+    cudaMemcpy(&h_arrow, d_arrow, sizeof(cudarrows::ArrowInfo), cudaMemcpyDeviceToHost);
+    cudaFree(d_arrow);
+    return h_arrow;
 }
 
-void cudarrows::Map::setArrow(int32_t x, int32_t y, cudarrows::Arrow arrow) {
-    int16_t chunkX = x / CHUNK_SIZE;
-    int16_t chunkY = y / CHUNK_SIZE;
-    cudarrows::Chunk chunk = getChunk(chunkX, chunkY); // TODO: Change this to cudaMemcpy
-    chunk.arrows[(y - chunkY) * CHUNK_SIZE + (x - chunkX)] = arrow;
-    setChunk(chunk);
+void cudarrows::Map::sendInput(int32_t x, int32_t y, cudarrows::ArrowInput input) {
+    ::sendInput<<<chunkCount, dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(chunks, x, y, input);
+}
+
+void cudarrows::Map::reset(uint64_t seed) {
+    ::reset<<<dim3(chunkCount, 2), dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(chunks, seed);
+}
+
+void cudarrows::Map::update() {
+    std::swap(step, nextStep);
+    ::update<<<chunkCount, dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(chunks, step, nextStep);
+}
+
+void cudarrows::Map::render(cudaSurfaceObject_t surface, int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
+    ::render<<<chunkCount, dim3(CHUNK_SIZE, CHUNK_SIZE)>>>(surface, chunks, step, minX, minY, maxX, maxY);
 }
