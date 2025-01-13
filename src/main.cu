@@ -218,6 +218,16 @@ int main(int argc, char *argv[]) {
 
     bool buttonHovered = false;
 
+    cudaEvent_t updateStart, updateEnd;
+    cuda_assert(cudaEventCreate(&updateStart));
+    cuda_assert(cudaEventCreate(&updateEnd));
+
+    unsigned long nticks = 0;
+
+    float tps = 0.f;
+
+    cuda_assert(cudaEventRecord(updateStart));
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
@@ -233,8 +243,8 @@ int main(int argc, char *argv[]) {
             bool mouseMoved = io.MousePos.x != io.MousePosPrev.x || io.MousePos.y != io.MousePosPrev.y;
 
             if (io.MouseDown[2] && mouseMoved) {
-                camera.xOffset = static_cast<float>(lastCameraX + io.MousePos.x - io.MousePosPrev.x);
-                camera.yOffset = static_cast<float>(lastCameraY + io.MousePos.y - io.MousePosPrev.y);
+                camera.xOffset = lastCameraX + io.MousePos.x - io.MousePosPrev.x;
+                camera.yOffset = lastCameraY + io.MousePos.y - io.MousePosPrev.y;
             }
 
             int32_t arrowX = int32_t(floor((-camera.xOffset + io.MousePos.x) / CELL_SIZE / camera.getScale()));
@@ -270,6 +280,7 @@ int main(int argc, char *argv[]) {
         if (playing) {
             while (glfwGetTime() >= nextUpdate) {
                 map.update();
+                ++nticks;
                 nextUpdate += 1.0 / targetTPS;
             }
         } else {
@@ -278,6 +289,7 @@ int main(int argc, char *argv[]) {
                 doStepFlag = false;
             }
             nextUpdate = glfwGetTime() + 1.0 / targetTPS;
+            tps = 0.f;
         }
 
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -341,6 +353,19 @@ int main(int argc, char *argv[]) {
         cuda_assert(cudaDestroySurfaceObject(surface));
 
         cuda_assert(cudaGraphicsUnmapResources(1, &cudaTexture));
+        
+        if (nticks > 0) {
+            cuda_assert(cudaEventRecord(updateEnd));
+
+            cuda_assert(cudaEventSynchronize(updateEnd));
+
+            float elapsedTime;
+            cuda_assert(cudaEventElapsedTime(&elapsedTime, updateStart, updateEnd));
+            tps = nticks * 1000.f / elapsedTime;
+            nticks = 0;
+
+            cuda_assert(cudaEventRecord(updateStart));
+        }
 
         cuda_assert(cudaDeviceSynchronize());
 
@@ -418,7 +443,7 @@ int main(int argc, char *argv[]) {
         if (debugWindowVisible) {
             ImGui::Begin("Debug", &debugWindowVisible);
 
-            ImGui::Text("Game is running at %.1f TPS (%.1f FPS)", io.Framerate, io.Framerate);
+            ImGui::Text("Game is running at %.1f TPS (%.1f FPS)", tps, io.Framerate);
 
             ImGui::End();
         }
@@ -434,6 +459,9 @@ int main(int argc, char *argv[]) {
     ImGui::DestroyContext();
 
     cuda_assert(cudaGraphicsUnregisterResource(cudaTexture));
+
+    cuda_assert(cudaEventDestroy(updateStart));
+    cuda_assert(cudaEventDestroy(updateEnd));
 
     glDeleteTextures(1, &atlasTexture);
     glDeleteTextures(1, &dataTexture);
