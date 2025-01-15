@@ -2,7 +2,7 @@
 #include "chunkupdates.cuh"
 #include "util/atomic_uint8.cuh"
 
-__device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, uint3 pos, int8_t dx, int8_t dy) {
+__device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk &chunk, cudarrows::Arrow &arrow, uint3 pos, cudarrows::localCoord dx, cudarrows::localCoord dy) {
     if (arrow.flipped)
         dx = -dx;
     int16_t x = pos.x;
@@ -74,7 +74,7 @@ __device__ void blockSignal(cudarrows::Arrow *arrow, uint8_t step) {
 
 __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep) {
     cudarrows::Chunk &chunk = chunks[blockIdx.x];
-    uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
+    cudarrows::arrowIdx idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
     cudarrows::Arrow &arrow = chunk.arrows[idx];
     cudarrows::ArrowState &state = arrow.state[step];
     cudarrows::ArrowState &prevState = arrow.state[nextStep];
@@ -248,7 +248,7 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
 
 __global__ void reset(cudarrows::Chunk *chunks, uint64_t seed) {
     cudarrows::Chunk &chunk = chunks[blockIdx.x];
-    uint8_t idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
+    cudarrows::arrowIdx idx = threadIdx.y * CHUNK_SIZE + threadIdx.x;
     cudarrows::Arrow &arrow = chunk.arrows[idx];
     arrow.state[blockIdx.y] = cudarrows::ArrowState();
     if (blockIdx.y == 0)

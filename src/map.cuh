@@ -4,9 +4,14 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#define CHUNK_SIZE 16
+#define CHUNK_SIZE 32
 
 namespace cudarrows {
+    typedef int32_t globalCoord;
+    typedef int16_t chunkCoord;
+    typedef int8_t localCoord;
+    typedef uint16_t arrowIdx;
+
     enum class ArrowType : uint8_t {
         Void,
         Arrow,
@@ -77,19 +82,19 @@ namespace cudarrows {
     };
 
     struct __builtin_align__(8) Chunk {
-        int16_t x, y;
+        cudarrows::chunkCoord x, y;
         Chunk *adjacentChunks[8] = { nullptr };
         Arrow arrows[CHUNK_SIZE * CHUNK_SIZE];
 
-        Chunk(int16_t x, int16_t y) : x(x), y(y) {}
+        Chunk(cudarrows::chunkCoord x, cudarrows::chunkCoord y) : x(x), y(y) {}
 
         Chunk() : Chunk(0, 0) {}
     };
 
     class Map {
     private:
-        Chunk *chunks = NULL;
-        size_t chunkCount = 0;
+        Chunk *chunks = nullptr;
+        unsigned int chunkCount = 0;
         uint8_t step = 0, nextStep = 1;
         
     public:
@@ -99,16 +104,16 @@ namespace cudarrows {
 
         ~Map();
 
-        ArrowInfo getArrow(int32_t x, int32_t y);
+        ArrowInfo getArrow(cudarrows::globalCoord x, cudarrows::globalCoord y);
 
-        void sendInput(int32_t x, int32_t y, ArrowInput input);
+        void sendInput(cudarrows::globalCoord x, cudarrows::globalCoord y, ArrowInput input);
 
         void reset(uint64_t seed);
 
         void update();
 
-        void render(cudaSurfaceObject_t surface, int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
+        void render(cudaSurfaceObject_t surface, cudarrows::globalCoord minX, cudarrows::globalCoord minY, cudarrows::globalCoord maxX, cudarrows::globalCoord maxY);
 
-        static int16_t arrowToChunk(int32_t x);
+        static cudarrows::chunkCoord arrowToChunk(cudarrows::globalCoord x);
     };
 };

@@ -49,7 +49,7 @@ static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-GLsizei roundToPowerOf2(GLsizei n) {
+unsigned long roundToPowerOf2(unsigned long n) {
     --n;
     n |= n >> 1;
     n |= n >> 2;
@@ -219,8 +219,8 @@ int main(int argc, char *argv[]) {
     memset(&resDesc, 0, sizeof(resDesc));
     resDesc.resType = cudaResourceTypeArray;
 
-    GLsizei texWidth, texHeight,
-            lastSpanX, lastSpanY;
+    unsigned long texWidth, texHeight,
+                  lastSpanX, lastSpanY;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -276,8 +276,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        int32_t arrowX = int32_t(floor((-camera.xOffset + io.MousePos.x) / CELL_SIZE / camera.getScale()));
-        int32_t arrowY = int32_t(floor((-camera.yOffset + io.MousePos.y) / CELL_SIZE / camera.getScale()));
+        cudarrows::globalCoord arrowX = floor((-camera.xOffset + io.MousePos.x) / CELL_SIZE / camera.getScale());
+        cudarrows::globalCoord arrowY = floor((-camera.yOffset + io.MousePos.y) / CELL_SIZE / camera.getScale());
 
         if (!io.WantCaptureMouse) {
             if (!io.MouseDown[2] && mouseMoved) {
@@ -327,10 +327,10 @@ int main(int argc, char *argv[]) {
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        int32_t minX = int32_t(-camera.xOffset / camera.getScale() / CELL_SIZE) - 1,
-                minY = int32_t(-camera.yOffset / camera.getScale() / CELL_SIZE) - 1,
-                maxX = int32_t((-camera.xOffset + io.DisplaySize.x) / camera.getScale() / CELL_SIZE),
-                maxY = int32_t((-camera.yOffset + io.DisplaySize.y) / camera.getScale() / CELL_SIZE);
+        cudarrows::globalCoord minX = cudarrows::globalCoord(-camera.xOffset / camera.getScale() / CELL_SIZE) - 1,
+              minY = cudarrows::globalCoord(-camera.yOffset / camera.getScale() / CELL_SIZE) - 1,
+              maxX = cudarrows::globalCoord((-camera.xOffset + io.DisplaySize.x) / camera.getScale() / CELL_SIZE),
+              maxY = cudarrows::globalCoord((-camera.yOffset + io.DisplaySize.y) / camera.getScale() / CELL_SIZE);
         
         GLsizei spanX = GLsizei(io.DisplaySize.x / camera.getScale() / CELL_SIZE) + 2,
                 spanY = GLsizei(io.DisplaySize.y / camera.getScale() / CELL_SIZE) + 2;
@@ -339,8 +339,8 @@ int main(int argc, char *argv[]) {
             lastSpanX = spanX;
             lastSpanY = spanY;
 
-            GLsizei newTexWidth = roundToPowerOf2(spanX),
-                    newTexHeight = roundToPowerOf2(spanY);
+            unsigned long newTexWidth = roundToPowerOf2(spanX),
+                          newTexHeight = roundToPowerOf2(spanY);
             if (cudaTexture == nullptr || newTexWidth != texWidth || newTexHeight != texHeight) {
                 texWidth = newTexWidth;
                 texHeight = newTexHeight;
