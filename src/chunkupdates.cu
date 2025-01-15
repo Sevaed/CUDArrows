@@ -28,35 +28,35 @@ __device__ cudarrows::Arrow *getArrow(cudarrows::Chunk *chunks, cudarrows::Chunk
     cudarrows::Chunk *targetChunk = &chunk;
     if (x >= CHUNK_SIZE) {
         if (y >= CHUNK_SIZE) {
-            targetChunk = chunk.adjacentChunks[3] == 0 ? nullptr : chunks + chunk.adjacentChunks[3];
+            targetChunk = chunk.adjacentChunks[3];
             x -= CHUNK_SIZE;
             y -= CHUNK_SIZE;
       }  else if (y < 0) {
-            targetChunk = chunk.adjacentChunks[1] == 0 ? nullptr : chunks + chunk.adjacentChunks[1] - 1;
+            targetChunk = chunk.adjacentChunks[1];
             x -= CHUNK_SIZE;
             y += CHUNK_SIZE;
         } else {
-            targetChunk = chunk.adjacentChunks[2] == 0 ? nullptr : chunks + chunk.adjacentChunks[2] - 1;
+            targetChunk = chunk.adjacentChunks[2];
             x -= CHUNK_SIZE;
         }
     } else if (x < 0) {
         if (y < 0) {
-            targetChunk = chunk.adjacentChunks[7] == 0 ? nullptr : chunks + chunk.adjacentChunks[7] - 1;
+            targetChunk = chunk.adjacentChunks[7];
             x += CHUNK_SIZE;
             y += CHUNK_SIZE;
         } else if (y >= CHUNK_SIZE) {
-            targetChunk = chunk.adjacentChunks[5] == 0 ? nullptr : chunks + chunk.adjacentChunks[5] - 1;
+            targetChunk = chunk.adjacentChunks[5];
             x += CHUNK_SIZE;
             y -= CHUNK_SIZE;
         } else {
-            targetChunk = chunk.adjacentChunks[6] == 0 ? nullptr : chunks + chunk.adjacentChunks[6] - 1;
+            targetChunk = chunk.adjacentChunks[6];
             x += CHUNK_SIZE;
         }
     } else if (y < 0) {
-        targetChunk = chunk.adjacentChunks[0] == 0 ? nullptr : chunks + chunk.adjacentChunks[0] - 1;
+        targetChunk = chunk.adjacentChunks[0];
         y += CHUNK_SIZE;
     } else if (y >= CHUNK_SIZE) {
-        targetChunk = chunk.adjacentChunks[4] == 0 ? nullptr : chunks + chunk.adjacentChunks[4] - 1;
+        targetChunk = chunk.adjacentChunks[4];
         y -= CHUNK_SIZE;
     }
     return targetChunk == nullptr ? nullptr : &targetChunk->arrows[y * CHUNK_SIZE + x];
@@ -101,7 +101,7 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
                     state.signal = prevState.signal == cudarrows::ArrowSignal::Blue ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
                 break;
             case cudarrows::ArrowType::SignalDetector: {
-                cudarrows::Arrow *arrowBehind = getArrow(chunks, chunk, arrow, threadIdx, 0, -1);
+                cudarrows::Arrow *arrowBehind = getArrow(chunks, chunk, arrow, threadIdx, 0, 1);
                 state.signal =
                     arrowBehind == nullptr || arrowBehind->state[nextStep].signal == cudarrows::ArrowSignal::White ?
                         cudarrows::ArrowSignal::White :

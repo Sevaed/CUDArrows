@@ -11,8 +11,10 @@ namespace util {
     public:
         Reader(const std::string &buffer) : buffer(buffer) {}
 
-        uint8_t read8();
+        uint8_t readU8();
 
-        uint16_t read16();
+        uint16_t readU16();
+
+        int16_t readI16();
     };
 };

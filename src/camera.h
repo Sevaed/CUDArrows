@@ -1,6 +1,6 @@
 #pragma once
 
-#define MIN_SCALE 0.2f
+#define MIN_SCALE 0.05f
 #define MAX_SCALE 2.0f
 
 namespace cudarrows {

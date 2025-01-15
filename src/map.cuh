@@ -78,7 +78,7 @@ namespace cudarrows {
 
     struct __builtin_align__(8) Chunk {
         int16_t x, y;
-        size_t adjacentChunks[8] = { 0 };
+        Chunk *adjacentChunks[8] = { nullptr };
         Arrow arrows[CHUNK_SIZE * CHUNK_SIZE];
 
         Chunk(int16_t x, int16_t y) : x(x), y(y) {}
@@ -108,5 +108,7 @@ namespace cudarrows {
         void update();
 
         void render(cudaSurfaceObject_t surface, int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
+
+        static int16_t arrowToChunk(int32_t x);
     };
 };

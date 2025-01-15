@@ -1,9 +1,9 @@
 {
   "dependencies": [
+    "cpr",
     "glad",
     "glfw3",
     "glm",
-    "stb",
     {
       "name": "imgui",
       "default-features": false,
@@ -11,6 +11,8 @@
         "glfw-binding",
         "opengl3-binding"
       ]
-    }
+    },
+    "stb",
+    "nlohmann-json"
   ]
 }

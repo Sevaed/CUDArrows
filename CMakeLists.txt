@@ -7,6 +7,8 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(cpr CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 add_executable(cudarrows
   src/main.cu
@@ -20,11 +22,16 @@ add_executable(cudarrows
   src/base64/base64.cpp
   src/util/reader.cpp
   src/util/atomic_uint8.cu
+  src/logicarrows/client.cpp
 )
 
 add_custom_command(TARGET cudarrows POST_BUILD
                    COMMAND ${CMAKE_COMMAND}
                    ARGS -E copy_directory_if_different "${PROJECT_SOURCE_DIR}/res" "$<TARGET_FILE_DIR:cudarrows>/res")
+
+add_custom_command(TARGET cudarrows POST_BUILD
+                   COMMAND ${CMAKE_COMMAND}
+                   ARGS -E copy_directory_if_different "${PROJECT_SOURCE_DIR}/tools" "$<TARGET_FILE_DIR:cudarrows>")
 
 target_compile_features(cudarrows PUBLIC cxx_std_17)
 
@@ -34,7 +41,7 @@ set_target_properties(cudarrows
 
 target_include_directories(cudarrows PRIVATE ${PROJECT_SOURCE_DIR}/src ${Stb_INCLUDE_DIR})
 
-target_link_libraries(cudarrows PRIVATE glfw glad::glad glm::glm ${OPENGL_LIBRARIES} imgui::imgui)
+target_link_libraries(cudarrows PRIVATE glfw glad::glad glm::glm ${OPENGL_LIBRARIES} imgui::imgui cpr::cpr nlohmann_json::nlohmann_json)
 
 if(APPLE)
   set_property(TARGET cudarrows

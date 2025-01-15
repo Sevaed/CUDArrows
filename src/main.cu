@@ -1,6 +1,8 @@
 #include <exception>
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
+#include <fstream>
 #include <string>
 #include <stdio.h>
 #include <glad/glad.h>
@@ -19,8 +21,13 @@
 #include "shaders/grid.h"
 #include "camera.h"
 #include "map.cuh"
+#include "logicarrows/client.h"
 
 #define CELL_SIZE 64.0f
+
+#define MAP_PREFIX "https://logic-arrows.io/map-"
+
+#define MAX_TPS 100000
 
 namespace fs = std::filesystem;
 
@@ -56,7 +63,7 @@ int main(int argc, char *argv[]) {
     std::set_terminate(cudarrows_terminate);
 
     if (argc < 2) {
-        printf("Usage: %s <map-code>\n", argv[0]);
+        printf("Usage: %s <map-code> | <map-url>\n", argv[0]);
         return 1;
     }
 
@@ -123,6 +130,9 @@ int main(int argc, char *argv[]) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    fs::path sessionPath(fs::current_path());
+    sessionPath.append("session.txt");
+
     fs::path resourcesPath(argv[0]);
     resourcesPath = resourcesPath.parent_path();
     resourcesPath.append("res");
@@ -157,7 +167,25 @@ int main(int argc, char *argv[]) {
 
     stbi_image_free(atlasData);
 
-    cudarrows::Map map(argv[1]);
+    std::string save(argv[1]);
+
+    if (save.compare(0, sizeof(MAP_PREFIX) - 1, MAP_PREFIX) == 0) {
+        if (!fs::exists(sessionPath)) {
+            fprintf(stderr, "You must be logged in to access online maps. Run the login script before using this.");
+            return 1;
+        }
+
+        std::ifstream sessionFile(sessionPath);
+        std::string userAgent, token;
+        std::getline(sessionFile, userAgent);
+        std::getline(sessionFile, token);
+
+        logicarrows::Client laClient(userAgent, token);
+        logicarrows::MapInfo mapInfo = laClient.getMap(save.substr(sizeof(MAP_PREFIX) - 1));
+        save = mapInfo.data;
+    }
+
+    cudarrows::Map map(save);
 
     cudarrows::ArrowsShader arrows;
     cudarrows::GridShader grid;
@@ -239,17 +267,19 @@ int main(int argc, char *argv[]) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (!io.WantCaptureMouse) {
-            bool mouseMoved = io.MousePos.x != io.MousePosPrev.x || io.MousePos.y != io.MousePosPrev.y;
+        bool mouseMoved = io.MousePos.x != io.MousePosPrev.x || io.MousePos.y != io.MousePosPrev.y;
 
+        if (!io.WantCaptureMouse) {
             if (io.MouseDown[2] && mouseMoved) {
                 camera.xOffset = lastCameraX + io.MousePos.x - io.MousePosPrev.x;
                 camera.yOffset = lastCameraY + io.MousePos.y - io.MousePosPrev.y;
             }
+        }
 
-            int32_t arrowX = int32_t(floor((-camera.xOffset + io.MousePos.x) / CELL_SIZE / camera.getScale()));
-            int32_t arrowY = int32_t(floor((-camera.yOffset + io.MousePos.y) / CELL_SIZE / camera.getScale()));
+        int32_t arrowX = int32_t(floor((-camera.xOffset + io.MousePos.x) / CELL_SIZE / camera.getScale()));
+        int32_t arrowY = int32_t(floor((-camera.yOffset + io.MousePos.y) / CELL_SIZE / camera.getScale()));
 
+        if (!io.WantCaptureMouse) {
             if (!io.MouseDown[2] && mouseMoved) {
                 cudarrows::ArrowInfo arrow = map.getArrow(arrowX, arrowY);
 
@@ -276,6 +306,8 @@ int main(int argc, char *argv[]) {
 
         if (targetTPS < 1)
             targetTPS = 1;
+        if (targetTPS > MAX_TPS)
+            targetTPS = MAX_TPS;
 
         if (playing) {
             while (glfwGetTime() >= nextUpdate) {
@@ -444,6 +476,11 @@ int main(int argc, char *argv[]) {
             ImGui::Begin("Debug", &debugWindowVisible);
 
             ImGui::Text("Game is running at %.1f TPS (%.1f FPS)", tps, io.Framerate);
+
+            ImGui::NewLine();
+
+            ImGui::Text("Targetted arrow: %d, %d", arrowX, arrowY);
+            ImGui::Text("Targetted chunk: %d, %d", cudarrows::Map::arrowToChunk(arrowX), cudarrows::Map::arrowToChunk(arrowY));
 
             ImGui::End();
         }
