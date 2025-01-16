@@ -22,18 +22,21 @@ jobs:
             artifact: win
             c_compiler: cl
             cpp_compiler: cl
+            cuda_compiler: nvcc
           - os: ubuntu-latest
             artifact: linux
             c_compiler: gcc
             cpp_compiler: g++
+            cuda_compiler: nvcc
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt update
-        sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
+        sudo apt install make libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
 
     - name: Set reusable strings
       id: strings
@@ -52,6 +55,7 @@ jobs:
     - name: Configure CMake
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CUDA_COMPILER=${{ matrix.cuda_compiler }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
