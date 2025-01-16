@@ -11,7 +11,7 @@ namespace gl {
     public:
         GLError(const std::string& info) : infoLog(info) {}
 
-        const char* what() const {
+        const char* what() const noexcept {
             return infoLog.c_str();
         }
     };
