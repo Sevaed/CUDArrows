@@ -12,7 +12,8 @@
         "opengl3-binding"
       ]
     },
+    "nlohmann-json",
     "stb",
-    "nlohmann-json"
+    "curl"
   ]
 }
