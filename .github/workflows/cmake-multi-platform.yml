@@ -36,7 +36,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt update
-        sudo apt install make libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
+        sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
 
     - name: Set reusable strings
       id: strings
@@ -45,6 +45,9 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
         echo "build-install-dir=${{ github.workspace }}/instdir" >> "$GITHUB_OUTPUT"
         echo "archive-name=${{ github.event.repository.name }}-${{ matrix.artifact }}-${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+    - name: Get latest CMake and Ninja
+      uses: lukka/get-cmake@latest
 
     - name: Install CUDA toolkit
       uses: Jimver/cuda-toolkit@v0.2.19
