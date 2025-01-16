@@ -8,7 +8,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(cpr CONFIG REQUIRED)
-find_package(curl CONFIG REQUIRED)
+find_package(CURL CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
