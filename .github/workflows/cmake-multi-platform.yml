@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
 
-      # Build for Linux, Windows and MacOS
+      # Build for Linux and Windows
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
         build_type: [Release]
         include:
           - os: windows-latest
@@ -26,13 +26,14 @@ jobs:
             artifact: linux
             c_compiler: gcc
             cpp_compiler: g++
-          - os: macos-latest
-            artifact: mac
-            c_compiler: clang
-            cpp_compiler: clang++
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
 
     - name: Set reusable strings
       id: strings
@@ -44,9 +45,6 @@ jobs:
 
     - name: Install CUDA toolkit
       uses: Jimver/cuda-toolkit@v0.2.19
-    
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
 
     - name: Run vcpkg
       uses: lukka/run-vcpkg@v11
