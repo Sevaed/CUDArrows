@@ -9,7 +9,7 @@
 
 ## About
 
-CUDArrows is a port of online game [Logic Arrows](https://logic-arrows.io) created by [Onigiri](https://www.youtube.com/@OnigiriScience). It uses [NVIDIA CUDA](https://developer.nvidia.com/cuda-toolkit) to enable hardware acceleration of the cellular automaton. CUDA allows to perform computation of every arrow on the map in parallel. This maximizes the performance and theoretically provides the fastest speed that can be achieved.
+CUDArrows is a port of online game [Logic Arrows](https://logic-arrows.io) created by [Onigiri](https://www.youtube.com/@OnigiriScience). It uses [NVIDIA® CUDA®](https://developer.nvidia.com/cuda-toolkit) to enable hardware acceleration of the cellular automaton. CUDA allows to perform computation of every arrow on the map in parallel. This maximizes the performance and theoretically provides the fastest speed that can be achieved.
 
 ## Installing
 
