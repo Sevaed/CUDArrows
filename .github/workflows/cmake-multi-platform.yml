@@ -16,7 +16,7 @@ jobs:
         build_type: [Release]
         include:
           - os: windows-latest
-            artifact: win
+            artifact: windows
             c_compiler: cl
             cpp_compiler: cl
             cuda_compiler: nvcc
@@ -71,8 +71,8 @@ jobs:
 
     - name: Pack
       run: |
-        cmake -E tar cfv ./${{ steps.strings.outputs.archive-name }}.zip --format=zip ${{ steps.strings.outputs.build-install-dir }}
-        cmake -E tar cfvz ./${{ steps.strings.outputs.archive-name }}.tar.gz --format=gnutar ${{ steps.strings.outputs.build-install-dir }}
+        cmake -E tar cfv ./${{ steps.strings.outputs.archive-name }}.zip --format=zip ${{ steps.strings.outputs.build-install-dir }}/bin/**/*
+        cmake -E tar cfvz ./${{ steps.strings.outputs.archive-name }}.tar.gz --format=gnutar ${{ steps.strings.outputs.build-install-dir }}/bin/**/*
 
     - name: Upload
       uses: actions/upload-artifact@v4
