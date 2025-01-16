@@ -1,0 +1,105 @@
+name: CMake on multiple platforms
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    outputs:
+        tag: ${{ steps.git.outputs.tag }}
+
+    strategy:
+      fail-fast: false
+
+      # Build for Linux, Windows and MacOS
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Release]
+        include:
+          - os: windows-latest
+            artifact: win
+            c_compiler: cl
+            cpp_compiler: cl
+          - os: ubuntu-latest
+            artifact: linux
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: macos-latest
+            artifact: mac
+            c_compiler: clang
+            cpp_compiler: clang++
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        echo "build-install-dir=${{ github.workspace }}/instdir" >> "$GITHUB_OUTPUT"
+        echo "archive-name=${{ github.event.repository.name }}-${{ matrix.config.artifact }}-${{ steps.git.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
+    - name: Run vcpkg
+      uses: lukka/run-vcpkg@v4
+      with:
+        vcpkgDirectory: ${{ github.workspace }}/vcpkg
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspave }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+    - name: Install
+      run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --prefix ${{ steps.strings.outputs.build-install-dir }} --strip
+
+    - name: Pack
+      run: |
+        cmake -E tar cfv ./${{ steps.strings.outputs.archive-name }}.zip --format=zip ${{ steps.strings.outputs.build-install-dir }}
+        cmake -E tar cfvz ./${{ steps.strings.outputs.archive-name }}.tar.gz --format=gnutar ${{ steps.strings.outputs.build-install-dir }}
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        path: |
+          ./${{ steps.strings.outputs.archive-name }}.zip
+          ./${{ steps.strings.outputs.archive-name }}.tar.gz
+        name: ${{ matrix.config.artifact }}
+
+  release:
+    if: startsWith(github.ref, "refs/tags/v")
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-with-dirs
+
+    - name: Fixup artifacts
+      run: |
+        mkdir release
+        mv release-with-dirs/*/* release/
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ needs.build.outputs.tag }}
+        files: release/*
+        draft: false
+        prerelease: false
