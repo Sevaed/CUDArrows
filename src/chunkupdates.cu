@@ -78,82 +78,81 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
     cudarrows::Arrow &arrow = chunk.arrows[idx];
     cudarrows::ArrowState &state = arrow.state[step];
     cudarrows::ArrowState &prevState = arrow.state[nextStep];
+    switch (arrow.type) {
+        case cudarrows::ArrowType::Arrow:
+        case cudarrows::ArrowType::Blocker:
+        case cudarrows::ArrowType::SplitterUpDown:
+        case cudarrows::ArrowType::SplitterUpRight:
+        case cudarrows::ArrowType::SplitterUpLeftRight:
+        case cudarrows::ArrowType::Source:
+        case cudarrows::ArrowType::Target:
+            state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::SourceBlock:
+            state.signal = cudarrows::ArrowSignal::Red;
+            break;
+        case cudarrows::ArrowType::DelayArrow:
+            if (state.signalCount > 0)
+                state.signal = prevState.signal == cudarrows::ArrowSignal::Red ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::Blue;
+            else
+                state.signal = prevState.signal == cudarrows::ArrowSignal::Blue ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::SignalDetector: {
+            cudarrows::Arrow *arrowBehind = getArrow(chunks, chunk, arrow, threadIdx, 0, 1);
+            state.signal =
+                arrowBehind == nullptr || arrowBehind->state[nextStep].signal == cudarrows::ArrowSignal::White ?
+                    cudarrows::ArrowSignal::White :
+                    cudarrows::ArrowSignal::Red;
+            break;   
+        }
+        case cudarrows::ArrowType::PulseGenerator:
+            state.signal = prevState.signal == cudarrows::ArrowSignal::White ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::Blue;
+            break;
+        case cudarrows::ArrowType::BlueArrow:
+        case cudarrows::ArrowType::DiagonalArrow:
+        case cudarrows::ArrowType::BlueSplitterUpUp:
+        case cudarrows::ArrowType::BlueSplitterUpRight:
+        case cudarrows::ArrowType::BlueSplitterUpDiagonal:
+            state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Blue : cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::NotGate:
+            state.signal = state.signalCount == 0 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::AndGate:
+            state.signal = state.signalCount >= 2 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::XorGate:
+            state.signal = state.signalCount % 2 == 1 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::Latch:
+            state.signal =
+                state.signalCount > 0 ?
+                    state.signalCount >= 2 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White :
+                    prevState.signal;
+            break;
+        case cudarrows::ArrowType::Flipflop:
+            state.signal =
+                state.signalCount > 0 ?
+                    (cudarrows::ArrowSignal)((uint8_t)cudarrows::ArrowSignal::Yellow - (uint8_t)prevState.signal) :
+                    prevState.signal;
+            break;
+        case cudarrows::ArrowType::Randomizer:
+            state.signal =
+                state.signalCount > 0 && curand(&arrow.input.curandState) > 2147483647 ?
+                    cudarrows::ArrowSignal::Orange :
+                    cudarrows::ArrowSignal::White;
+            break;
+        case cudarrows::ArrowType::Button:
+            state.signal = arrow.input.buttonPressed ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
+            arrow.input.buttonPressed = false;
+            break;
+        case cudarrows::ArrowType::DirectionalButton:
+            state.signal = arrow.input.buttonPressed || state.signalCount > 0 ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
+            arrow.input.buttonPressed = false;
+            break;
+    }
     if (state.blocked)
         state.signal = cudarrows::ArrowSignal::White;
-    else
-        switch (arrow.type) {
-            case cudarrows::ArrowType::Arrow:
-            case cudarrows::ArrowType::Blocker:
-            case cudarrows::ArrowType::SplitterUpDown:
-            case cudarrows::ArrowType::SplitterUpRight:
-            case cudarrows::ArrowType::SplitterUpLeftRight:
-            case cudarrows::ArrowType::Source:
-            case cudarrows::ArrowType::Target:
-                state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::SourceBlock:
-                state.signal = cudarrows::ArrowSignal::Red;
-                break;
-            case cudarrows::ArrowType::DelayArrow:
-                if (state.signalCount > 0)
-                    state.signal = prevState.signal == cudarrows::ArrowSignal::Red ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::Blue;
-                else
-                    state.signal = prevState.signal == cudarrows::ArrowSignal::Blue ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::SignalDetector: {
-                cudarrows::Arrow *arrowBehind = getArrow(chunks, chunk, arrow, threadIdx, 0, 1);
-                state.signal =
-                    arrowBehind == nullptr || arrowBehind->state[nextStep].signal == cudarrows::ArrowSignal::White ?
-                        cudarrows::ArrowSignal::White :
-                        cudarrows::ArrowSignal::Red;
-                break;   
-            }
-            case cudarrows::ArrowType::PulseGenerator:
-                state.signal = prevState.signal == cudarrows::ArrowSignal::White ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::Blue;
-                break;
-            case cudarrows::ArrowType::BlueArrow:
-            case cudarrows::ArrowType::DiagonalArrow:
-            case cudarrows::ArrowType::BlueSplitterUpUp:
-            case cudarrows::ArrowType::BlueSplitterUpRight:
-            case cudarrows::ArrowType::BlueSplitterUpDiagonal:
-                state.signal = state.signalCount > 0 ? cudarrows::ArrowSignal::Blue : cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::NotGate:
-                state.signal = state.signalCount == 0 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::AndGate:
-                state.signal = state.signalCount >= 2 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::XorGate:
-                state.signal = state.signalCount % 2 == 1 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::Latch:
-                state.signal =
-                    state.signalCount > 0 ?
-                        state.signalCount >= 2 ? cudarrows::ArrowSignal::Yellow : cudarrows::ArrowSignal::White :
-                        prevState.signal;
-                break;
-            case cudarrows::ArrowType::Flipflop:
-                state.signal =
-                    state.signalCount > 0 ?
-                        (cudarrows::ArrowSignal)((uint8_t)cudarrows::ArrowSignal::Yellow - (uint8_t)prevState.signal) :
-                        prevState.signal;
-                break;
-            case cudarrows::ArrowType::Randomizer:
-                state.signal =
-                    state.signalCount > 0 && curand(&arrow.input.curandState) > 2147483647 ?
-                        cudarrows::ArrowSignal::Orange :
-                        cudarrows::ArrowSignal::White;
-                break;
-            case cudarrows::ArrowType::Button:
-                state.signal = arrow.input.buttonPressed ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
-                arrow.input.buttonPressed = false;
-                break;
-            case cudarrows::ArrowType::DirectionalButton:
-                state.signal = arrow.input.buttonPressed || state.signalCount > 0 ? cudarrows::ArrowSignal::Orange : cudarrows::ArrowSignal::White;
-                arrow.input.buttonPressed = false;
-                break;
-        }
     switch (arrow.type) {
         case cudarrows::ArrowType::Arrow:
         case cudarrows::ArrowType::DelayArrow:

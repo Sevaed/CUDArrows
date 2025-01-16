@@ -246,13 +246,16 @@ int main(int argc, char *argv[]) {
 
     bool buttonHovered = false;
 
-    cudaEvent_t updateStart, updateEnd;
+    cudaEvent_t updateStart, updateEnd,
+                tickStart, tickEnd;
     cuda_assert(cudaEventCreate(&updateStart));
     cuda_assert(cudaEventCreate(&updateEnd));
+    cuda_assert(cudaEventCreate(&tickStart));
+    cuda_assert(cudaEventCreate(&tickEnd));
 
     unsigned long nticks = 0;
 
-    float tps = 0.f;
+    float tps = 0.f, msPerTick = 0.f;
 
     cuda_assert(cudaEventRecord(updateStart));
 
@@ -311,7 +314,9 @@ int main(int argc, char *argv[]) {
 
         if (playing) {
             while (glfwGetTime() >= nextUpdate) {
+                cuda_assert(cudaEventRecord(tickStart));
                 map.update();
+                cuda_assert(cudaEventRecord(tickEnd));
                 ++nticks;
                 nextUpdate += 1.0 / targetTPS;
             }
@@ -394,6 +399,10 @@ int main(int argc, char *argv[]) {
             float elapsedTime;
             cuda_assert(cudaEventElapsedTime(&elapsedTime, updateStart, updateEnd));
             tps = nticks * 1000.f / elapsedTime;
+
+            cuda_assert(cudaEventElapsedTime(&elapsedTime, tickStart, tickEnd));
+            msPerTick = elapsedTime;
+
             nticks = 0;
 
             cuda_assert(cudaEventRecord(updateStart));
@@ -476,6 +485,7 @@ int main(int argc, char *argv[]) {
             ImGui::Begin("Debug", &debugWindowVisible);
 
             ImGui::Text("Game is running at %.1f TPS (%.1f FPS)", tps, io.Framerate);
+            ImGui::Text("(%.1f milliseconds per tick)", msPerTick);
 
             ImGui::NewLine();
 
