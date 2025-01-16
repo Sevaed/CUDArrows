@@ -37,8 +37,6 @@ match args.browser:
         driver = webdriver.Firefox(firefox_profile=profile)
     case "chrome":
         opts = Options()
-        opts.add_argument("user-data-dir=selenium")
-        opts.add_argument("profile-directory=CUDArrowsProfile")
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
         opts.add_argument("disable-blink-features=AutomationControlled")
