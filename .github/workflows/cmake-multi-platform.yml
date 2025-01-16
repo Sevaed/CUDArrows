@@ -56,6 +56,7 @@ jobs:
       uses: lukka/run-vcpkg@v11
 
     - name: Configure CMake
+      continue-on-error: true
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         -DCMAKE_CUDA_COMPILER=${{ matrix.cuda_compiler }}
@@ -64,6 +65,8 @@ jobs:
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
         -S ${{ github.workspace }}
+
+    - run: cat /home/runner/work/CUDArrows/CUDArrows/vcpkg/buildtrees/imgui/install-x64-linux-dbg-out.log
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
