@@ -42,6 +42,12 @@ jobs:
         echo "build-install-dir=${{ github.workspace }}/instdir" >> "$GITHUB_OUTPUT"
         echo "archive-name=${{ github.event.repository.name }}-${{ matrix.artifact }}-${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
+    - name: Install CUDA toolkit
+      uses: Jimver/cuda-toolkit@v0.2.19
+    
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+
     - name: Run vcpkg
       uses: lukka/run-vcpkg@v11
 
