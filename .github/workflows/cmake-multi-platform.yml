@@ -43,9 +43,7 @@ jobs:
         echo "archive-name=${{ github.event.repository.name }}-${{ matrix.artifact }}-${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
     - name: Run vcpkg
-      uses: lukka/run-vcpkg@v4
-      with:
-        vcpkgDirectory: ${{ github.workspace }}/vcpkg
+      uses: lukka/run-vcpkg@v11
 
     - name: Configure CMake
       run: >
