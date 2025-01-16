@@ -9,8 +9,6 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    outputs:
-        tag: ${{ steps.git.outputs.tag }}
 
     strategy:
       fail-fast: false
@@ -42,7 +40,7 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
         echo "build-install-dir=${{ github.workspace }}/instdir" >> "$GITHUB_OUTPUT"
-        echo "archive-name=${{ github.event.repository.name }}-${{ matrix.config.artifact }}-${{ steps.git.outputs.tag }}" >> "$GITHUB_OUTPUT"
+        echo "archive-name=${{ github.event.repository.name }}-${{ matrix.artifact }}-${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
     - name: Run vcpkg
       uses: lukka/run-vcpkg@v4
@@ -55,7 +53,7 @@ jobs:
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspave }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
         -S ${{ github.workspace }}
 
     - name: Build
@@ -75,7 +73,7 @@ jobs:
         path: |
           ./${{ steps.strings.outputs.archive-name }}.zip
           ./${{ steps.strings.outputs.archive-name }}.tar.gz
-        name: ${{ matrix.config.artifact }}
+        name: ${{ matrix.artifact }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -99,7 +97,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ needs.build.outputs.tag }}
         files: release/*
         draft: false
         prerelease: false
