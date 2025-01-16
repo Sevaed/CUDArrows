@@ -8,7 +8,10 @@ find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(cpr CONFIG REQUIRED)
+find_package(curl CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 add_executable(cudarrows
   src/main.cu
@@ -31,7 +34,7 @@ add_custom_command(TARGET cudarrows POST_BUILD
 
 add_custom_command(TARGET cudarrows POST_BUILD
                    COMMAND ${CMAKE_COMMAND}
-                   ARGS -E copy_directory_if_different "${PROJECT_SOURCE_DIR}/tools" "$<TARGET_FILE_DIR:cudarrows>")
+                   ARGS -E copy_directory_if_different "${PROJECT_SOURCE_DIR}/tools" "$<TARGET_FILE_DIR:cudarrows>/tools")
 
 target_compile_features(cudarrows PUBLIC cxx_std_17)
 
@@ -48,3 +51,27 @@ if(APPLE)
                PROPERTY
                BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 endif()
+
+install(TARGETS cudarrows
+ 	RUNTIME_DEPENDENCY_SET cudarrows_deps
+ 	RUNTIME
+ 		DESTINATION "${CMAKE_BINARY_DIR}"
+ 	LIBRARY
+ 		DESTINATION "${CMAKE_LIBRARY_DIR}"
+ 	ARCHIVE
+ 		DESTINATION "${CMAKE_ARCHIVE_DIR}"
+)
+
+install(RUNTIME_DEPENDENCY_SET cudarrows_deps
+	PRE_EXCLUDE_REGEXES
+		[=[api-ms-]=]
+		[=[ext-ms-]=]
+		[[kernel32\.dll]]
+		[[libc\.so\..*]] [[libgcc_s\.so\..*]] [[libm\.so\..*]] [[libstdc\+\+\.so\..*]]
+	POST_EXCLUDE_REGEXES
+		[=[.*system32\/.*\.dll]=]
+		[=[^\/(lib|usr\/lib|usr\/local\/lib\/lib64)]=]
+)
+
+install(DIRECTORY res DESTINATION bin)
+install(DIRECTORY tools/ DESTINATION bin)
