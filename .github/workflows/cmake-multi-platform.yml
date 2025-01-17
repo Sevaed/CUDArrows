@@ -73,8 +73,8 @@ jobs:
       run: |
         cd ${{ steps.strings.outputs.build-install-dir }}
         cmake -E rename bin ${{ steps.strings.outputs.archive-name }}
-        cmake -E tar cvf ${{ github.workspace }}/${{ steps.strings.outputs.archive-name }}.zip ${{ steps.strings.outputs.archive-name }}
-        cmake -E tar zcvf ${{ github.workspace }}/${{ steps.strings.outputs.archive-name }}.tar.gz ${{ steps.strings.outputs.archive-name }}
+        cmake -E tar cvf ${{ github.workspace }}/${{ steps.strings.outputs.archive-name }}.zip ${{ steps.strings.outputs.archive-name }} --format=zip
+        cmake -E tar zcvf ${{ github.workspace }}/${{ steps.strings.outputs.archive-name }}.tar.gz ${{ steps.strings.outputs.archive-name }} --format=gnutar
 
     - name: Upload
       uses: actions/upload-artifact@v4
