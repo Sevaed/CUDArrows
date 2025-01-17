@@ -72,8 +72,8 @@ jobs:
     - name: Pack
       run: |
         cd ${{ steps.strings.outputs.build-install-dir }}/bin
-        cmake -E tar cvf ${{ steps.strings.outputs.archive-name }}.zip *
-        cmake -E tar zcvf ${{ steps.strings.outputs.archive-name }}.tar.gz *
+        cmake -E tar cvf ${{ steps.strings.outputs.archive-name }}.zip .
+        cmake -E tar zcvf ${{ steps.strings.outputs.archive-name }}.tar.gz .
 
     - name: Upload
       uses: actions/upload-artifact@v4
