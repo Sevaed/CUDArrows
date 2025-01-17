@@ -93,7 +93,7 @@ __global__ void update(cudarrows::Chunk *chunks, uint8_t step, uint8_t nextStep)
             break;
         case cudarrows::ArrowType::DelayArrow:
             if (state.signalCount > 0)
-                state.signal = prevState.signal == cudarrows::ArrowSignal::Red ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::Blue;
+                state.signal = prevState.signal == cudarrows::ArrowSignal::White ? cudarrows::ArrowSignal::Blue : cudarrows::ArrowSignal::Red;
             else
                 state.signal = prevState.signal == cudarrows::ArrowSignal::Blue ? cudarrows::ArrowSignal::Red : cudarrows::ArrowSignal::White;
             break;
