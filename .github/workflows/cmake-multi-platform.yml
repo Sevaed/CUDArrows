@@ -81,7 +81,7 @@ jobs:
         path: |
           ${{ steps.strings.outputs.archive-name }}.zip
           ${{ steps.strings.outputs.archive-name }}.tar.gz
-        name: ${{ matrix.artifact }}
+        name: build/${{ matrix.artifact }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -92,12 +92,9 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        path: release-with-dirs
-
-    - name: Fixup artifacts
-      run: |
-        mkdir release
-        mv release-with-dirs/*/* release/
+        name: build/*
+        path: release
+        merge-multiple: true
 
     - name: Create Release
       id: create_release
