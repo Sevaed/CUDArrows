@@ -93,8 +93,8 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        name: build-*
         path: release
+        pattern: build-*
         merge-multiple: true
 
     - name: Create Release
