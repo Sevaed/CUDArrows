@@ -42,7 +42,7 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
         echo "build-install-dir=${{ github.workspace }}/instdir" >> "$GITHUB_OUTPUT"
-        echo "archive-name=${{ github.workspace }}/${{ github.event.repository.name }}-${{ matrix.artifact }}-${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        echo "archive-name=${{ github.event.repository.name }}-${{ matrix.artifact }}-${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
     - name: Get latest CMake and Ninja
       uses: lukka/get-cmake@latest
@@ -71,9 +71,10 @@ jobs:
 
     - name: Pack
       run: |
-        cd ${{ steps.strings.outputs.build-install-dir }}/bin
-        cmake -E tar cvf ${{ steps.strings.outputs.archive-name }}.zip .
-        cmake -E tar zcvf ${{ steps.strings.outputs.archive-name }}.tar.gz .
+        cd ${{ steps.strings.outputs.build-install-dir }}
+        cmake -E rename bin ${{ steps.strings.outputs.archive-name }}
+        cmake -E tar cvf ${{ github.workspace }}/${{ steps.strings.outputs.archive-name }}.zip ${{ steps.strings.outputs.archive-name }}
+        cmake -E tar zcvf ${{ github.workspace }}/${{ steps.strings.outputs.archive-name }}.tar.gz ${{ steps.strings.outputs.archive-name }}
 
     - name: Upload
       uses: actions/upload-artifact@v4
