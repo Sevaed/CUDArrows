@@ -28,7 +28,7 @@ cmake --install . --prefix /path/to/cudarrows --strip
 
 ## Using
 
-CUDArrows is a GUI application, however it must be launcher from the command line. You must specify map save code or URL as a CLI argument:
+CUDArrows is a GUI application, however it must be launched from the command line. You must specify map save code or URL as a CLI argument:
 ```
 cudarrows AAABAAAAAAADBh4AABAAIABAAFAAUQACABIAIgBCAFIAVAAFARUBJQFVAAcAFwBnACgBCgAaAEoAWgArAWsBHQBNAF0AHgBeAAcOYABiAwQBJABEAUUCZQNHAUgCaAINAQ4CLgNOAm4DAgkRAWEBFAFkAScBWAEqAWoBLQFtAQgAVwE=
 ```
