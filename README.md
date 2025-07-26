@@ -15,9 +15,20 @@ CUDArrows is a port of online game [Logic Arrows](https://logic-arrows.io) creat
 
 You can either download [pre-built binaries](https://github.com/sagdrip/CUDArrows/releases) for your system or build from source.
 
+### Dependencies
+
+Building CUDArrows requires the [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) and the [vcpkg](https://github.com/microsoft/vcpkg) package manager. On Ubuntu you can install CUDA via your package manager or the official installer. After installing CUDA clone and bootstrap vcpkg:
+
+```bash
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+./bootstrap-vcpkg.sh
+export VCPKG_ROOT="$(pwd)"
+```
+
 ### Building from source
 
-Clone this GitHub repository and use CMake to build the project:
+Clone this GitHub repository and use CMake to build the project. Provide the vcpkg toolchain file during configuration:
 ```bash
 mkdir build
 cd build
